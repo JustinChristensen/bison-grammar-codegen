@@ -2,6 +2,7 @@ PROG := bison-gen
 CABAL := cabal
 CURL := curl
 BISON := ./bison/src/bison
+RUN_GRAM := $(BISON) -fgrammar-only gram.y 2>/dev/null
 
 .PHONY: all
 all: build
@@ -11,11 +12,11 @@ build: $(PROG)
 
 .PHONY: $(PROG)
 $(PROG):
-	$(CABAL) v2-build
+	$(CABAL) v2-build $@
 
 .PHONY: run
 run:
-	$(CABAL) v2-run
+	$(CABAL) v2-run $(PROG)
 
 .PHONY: repl
 repl:
@@ -25,9 +26,13 @@ gram.y: GRAM_FILE:= https://raw.githubusercontent.com/postgres/postgres/REL_11_4
 gram.y:
 	$(CURL) -sO $(GRAM_FILE)
 
+.PHONY: run-gram
+run-gram:
+	$(RUN_GRAM)
+
 .PHONY: test
 test: gram.y
-	@grammar=$$($(BISON) -fgrammar-only gram.y 2>/dev/null) && \
+	@grammar=$$($(RUN_GRAM) && \
 	printf "%s" "$$grammar" | cabal v2-run || \
 	printf "bison not found at $(BISON) \n"
 
