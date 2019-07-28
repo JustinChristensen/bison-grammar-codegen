@@ -1,0 +1,35 @@
+cabal-version: 2.4
+name: bison-grammar-codegen
+version: 0.0.1
+license: MIT
+license-file: LICENSE.md
+author: Justin Christensen
+maintainer: justin@promise.io
+extra-source-files: *.md
+
+common props
+    ghc-options: -Wall
+    build-depends: base ^>=4.12.0.0
+    default-language: Haskell2010
+
+library
+    import: props
+    exposed-modules:
+      Bison.Grammar.Codegen
+      Bison.Grammar.Parser
+    hs-source-dirs: src
+    build-depends:
+      , fast-logger
+      , mtl
+      , optparse-applicative
+      , attoparsec
+      , text
+      , time
+
+executable bison-gen
+    import: props
+    main-is: Main.hs
+    other-modules:
+        Paths_bison_grammar_codegen
+    build-depends:
+        bison-grammar-codegen
