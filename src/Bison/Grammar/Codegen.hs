@@ -1,6 +1,12 @@
 module Bison.Grammar.Codegen (
-    sayHi
+    productions
 ) where
 
-sayHi :: IO ()
-sayHi = putStrLn "foo"
+import Bison.Grammar.Types
+
+productions :: ([Production] -> IO ()) -> IO ()
+productions f = do
+    grammar <- getContents
+    print grammar
+    f []
+

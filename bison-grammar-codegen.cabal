@@ -17,11 +17,11 @@ library
     exposed-modules:
       Bison.Grammar.Codegen
       Bison.Grammar.Parser
+      Bison.Grammar.Types
     hs-source-dirs: src
     build-depends:
-      , fast-logger
+        fast-logger
       , mtl
-      , optparse-applicative
       , attoparsec
       , text
       , time
@@ -33,3 +33,4 @@ executable bison-gen
         Paths_bison_grammar_codegen
     build-depends:
         bison-grammar-codegen
+      , optparse-applicative
