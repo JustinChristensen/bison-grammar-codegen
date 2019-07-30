@@ -15,14 +15,15 @@ common props
 library
     import: props
     exposed-modules:
-      Bison.Grammar.Codegen
-      Bison.Grammar.Parser
-      Bison.Grammar.Types
+        Bison.Grammar.Codegen
+      , Bison.Grammar.Lexer
+      , Bison.Grammar.Parser
+      , Bison.Grammar.Types
     hs-source-dirs: src
     build-depends:
         fast-logger
       , mtl
-      , attoparsec
+      , megaparsec
       , text
       , time
 

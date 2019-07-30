@@ -1,0 +1,5 @@
+:set -XOverloadedStrings
+
+import Data.Text (Text)
+import Text.Megaparsec
+import Text.Megaparsec.Char
