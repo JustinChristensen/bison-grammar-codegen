@@ -2,10 +2,21 @@ module Bison.Grammar.Types where
 
 import Data.Text (Text)
 import Data.Void (Void)
+-- import Control.Monad.State
 import Text.Megaparsec
 
 type Scanner = Parsec Void Text
 type Token = (TokenType, Text)
+
+data ScannerState = ScannerState {
+        section :: ScanSection
+    }
+
+data ScanSection
+    = Prologue
+    | Grammar
+    | Epilogue
+    deriving (Show, Read, Eq, Ord, Enum)
 
 data ScanState
     = INITIAL

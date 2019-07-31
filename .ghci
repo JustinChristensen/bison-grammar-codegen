@@ -1,5 +1,9 @@
 :set -XOverloadedStrings
 
 import Data.Text (Text)
+import Data.Void
+import Data.Semigroup
+import Control.Applicative
+import Control.Monad.Identity
 import Text.Megaparsec
 import Text.Megaparsec.Char
