@@ -1,17 +1,16 @@
 module Bison.Grammar.Codegen (
---     productions
+    productions
 ) where
 
+import qualified Data.Text.IO as T (getContents)
 import Bison.Grammar.Lexer
-import Bison.Grammar.Parser
 import Bison.Grammar.Types
 
--- import qualified Data.Text.IO as T (getContents)
--- import Bison.Grammar.Parser
--- import Bison.Grammar.Types
-
--- productions :: ([Production] -> IO ()) -> IO ()
--- productions f = do
---     grammar <- T.getContents
---     f $ parse grammar
+productions :: ([Token] -> IO ()) -> IO ()
+productions f = do
+    grammarSpec <- T.getContents
+    let mTokens = scan grammarSpec
+    case mTokens of
+        Just t -> print t
+        _ -> pure ()
 

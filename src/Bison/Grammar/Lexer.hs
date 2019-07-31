@@ -3,10 +3,11 @@ module Bison.Grammar.Lexer where
 
 import Data.Char (isAlpha, isDigit, isHexDigit, isSpace)
 import Data.List (intersperse)
-import Control.Applicative
-import Text.Megaparsec hiding (Token)
+import Control.Applicative hiding (many, some)
+import Text.Megaparsec hiding (Token, token, tokens)
 import Text.Megaparsec.Char (string)
 import qualified Text.Megaparsec.Char as M
+import qualified Text.Megaparsec.Char.Lexer as L
 import Data.Text (Text)
 import qualified Data.Text as T (singleton, map)
 import Bison.Grammar.Types
@@ -139,105 +140,23 @@ pipe = string "|" &# PIPE
 semicolon :: Scanner Token
 semicolon = string ";"  &# SEMICOLON
 
-badPercentId :: Scanner Token
-badPercentId = undefined
--- charT '%' <> id_
+whitespace :: Scanner ()
+whitespace = L.space M.space1
+    (L.skipLineComment "//")
+    (L.skipBlockComment "/*" "*/")
 
-identifier :: Scanner Text
-identifier = id_
+word :: Scanner Text
+word = takeWhile1P Nothing (not . isSpace)
 
-integer :: Scanner Text
-integer = int_
+token :: Scanner Token
+token = L.lexeme whitespace (word &# STRING)
 
-hexInteger :: Scanner Text
-hexInteger = xint_
+tokens :: Scanner [Token]
+tokens = many token
 
-badIntIdentifier :: Scanner Text
-badIntIdentifier = try $ int_ <> id_
+scan :: Text -> Maybe [Token]
+scan = parseMaybe tokens
 
-character :: Scanner Text
-character = charT '\''
-
-string_ :: Scanner Text
-string_ = charT '\"'
-
-prologue :: Scanner Text
-prologue = string "%{"
-
-bracedCode :: Scanner Text
-bracedCode = charT '{'
-
-predicate :: Scanner Text
-predicate = try $ string "%?" <> sp_ <> string "{"
-
-percentPercent :: Scanner Text
-percentPercent = string "%%"
-
-bracketedId :: Scanner Text
-bracketedId = charT '['
-
-badCharacters :: Scanner Token
-badCharacters = undefined
-
-badNull :: Scanner Token
-badNull = undefined
-
--- scan :: ScanState -> Scanner Token
--- scan ss = case state of
---     INITIAL ->
---             whitespace
---         <|> declarations
---         <|> badPercentId -- error
---         <|> colon
---         <|> equal
---         <|> pipe
---         <|> semicolon
---         <|> identifier <> scan SC_AFTER_IDENTIFIER
---         <|> integer &t INT
---         <|> hexInteger &t INT
---         <|> badIntIdentifier
---         <|> character <> scan SC_ESCAPED_CHARACTER
---         <|> string_ <> scan SC_ESCAPED_STRING
---         <|> prologue <> scan SC_PROLOGUE
---         <|> bracedCode
---         <|> predicate
---         <|> tag
---         <|> string "<*>" &t TAG_ANY
---         <|> string "<>" &t TAG_NONE
---         <|> charT '<' <> scan SC_TAG
---         <|> percentPercent
---         <|> bracketedId <> scan SC_BRACKETED_ID
---         <|> badCharacters
---         <|> eof
---     SC_YACC_COMMENT ->
---     SC_ESCAPED_STRING ->
---             badNull
---     SC_ESCAPED_CHARACTER ->
---     SC_AFTER_IDENTIFIER ->
---             whitespace
---         <|> badNull
---         -- bracketed id
---         -- id colon
---         -- id
---         -- eof id
---     SC_TAG ->
---             badNull
---     SC_PROLOGUE ->
---     SC_BRACED_CODE ->
---     SC_EPILOGUE ->
---     SC_PREDICATE ->
---     SC_COMMENT ->
---     SC_LINE_COMMENT ->
---     SC_STRING ->
---     SC_CHARACTER ->
---     SC_BRACKETED_ID ->
---             whitespace
---     SC_TAG ->
---     SC_RETURN_BRACKETED_ID ->
---             whitespace
-
-scan :: Scanner [Token]
-scan = undefined
 
 
 

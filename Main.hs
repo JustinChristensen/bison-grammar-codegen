@@ -21,9 +21,9 @@ readArgs = execParser pInfo
 runVersion :: IO ()
 runVersion = putStrLn (showVersion version)
 
--- runCodegen :: IO ()
--- runCodegen = do
---     productions $ \_ -> pure ()
+runCodegen :: IO ()
+runCodegen = do
+    productions $ \_ -> pure ()
 
 main :: IO ()
 main = do

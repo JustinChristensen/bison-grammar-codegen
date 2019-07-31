@@ -18,25 +18,6 @@ data ScanSection
     | Epilogue
     deriving (Show, Read, Eq, Ord, Enum)
 
-data ScanState
-    = INITIAL
-    | SC_YACC_COMMENT
-    | SC_ESCAPED_STRING
-    | SC_ESCAPED_CHARACTER
-    | SC_AFTER_IDENTIFIER
-    | SC_TAG
-    | SC_PROLOGUE
-    | SC_BRACED_CODE
-    | SC_EPILOGUE
-    | SC_PREDICATE
-    | SC_COMMENT
-    | SC_LINE_COMMENT
-    | SC_STRING
-    | SC_CHARACTER
-    | SC_BRACKETED_ID
-    | SC_RETURN_BRACKETED_ID
-    deriving (Show, Read, Eq, Ord, Enum)
-
 data TokenType
     = GRAM_EOF
     | STRING
