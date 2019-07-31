@@ -32,7 +32,7 @@ run-gram:
 
 .PHONY: test
 test: gram.y
-	@grammar=$$($(RUN_GRAM) && \
+	@grammar=$$($(RUN_GRAM)) && \
 	printf "%s" "$$grammar" | cabal v2-run || \
 	printf "bison not found at $(BISON) \n"
 

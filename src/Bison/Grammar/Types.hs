@@ -2,25 +2,19 @@ module Bison.Grammar.Types where
 
 import Data.Text (Text)
 import Data.Void (Void)
--- import Control.Monad.State
-import Text.Megaparsec
+import Text.Megaparsec hiding (Token)
 
 type Scanner = Parsec Void Text
-type Token = (TokenType, Text)
+-- type Token = (TokenType, Text)
 
-data ScannerState = ScannerState {
-        section :: ScanSection
-    }
+-- data ScanSection
+--     = Prologue
+--     | Grammar
+--     | Epilogue
+--     deriving (Show, Read, Eq, Ord, Enum)
 
-data ScanSection
-    = Prologue
-    | Grammar
-    | Epilogue
-    deriving (Show, Read, Eq, Ord, Enum)
-
-data TokenType
-    = GRAM_EOF
-    | STRING
+data Token
+    = STRING Text
     | PERCENT_TOKEN
     | PERCENT_NTERM
     | PERCENT_TYPE
@@ -59,13 +53,13 @@ data TokenType
     | PERCENT_YACC
     | BRACED_CODE
     | BRACED_PREDICATE
-    | BRACKETED_ID
+    | BRACKETED_ID Text
     | CHAR
     | COLON
     | EPILOGUE
     | EQUAL
-    | ID
-    | ID_COLON
+    | ID Text
+    | ID_COLON Text
     | PERCENT_PERCENT
     | PIPE
     | PROLOGUE
@@ -77,5 +71,5 @@ data TokenType
     | PERCENT_PARAM
     | PERCENT_UNION
     | PERCENT_EMPTY
-    deriving (Show, Read, Eq, Ord, Enum)
+    deriving (Show, Read, Eq, Ord)
 
