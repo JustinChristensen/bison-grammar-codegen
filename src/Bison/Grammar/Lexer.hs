@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Bison.Grammar.Lexer where
 
-import Data.Char (isAlpha, isDigit, isHexDigit, isSpace)
+import Data.Char (isAlpha, isDigit, isSpace)
 import Data.List (intersperse)
 import Control.Applicative hiding (many, some)
+import Control.Monad.State (get, put, gets)
 import Text.Megaparsec hiding (Token, token, tokens)
 import Text.Megaparsec.Char (string)
 import qualified Text.Megaparsec.Char as M
@@ -34,26 +35,11 @@ id_ :: Scanner Text
 id_ = letter_ <>
     takeWhileP (Just "alphanumeric character, '.', or '_'") isLetterOrNum
 
-int_ :: Scanner Text
-int_ = takeWhile1P (Just "digit") isDigit
-
-xint_ :: Scanner Text
-xint_ = try ((charT '0')
-        <> (satisfyT (`elem` ['x', 'X']) <?> "'x', or 'x'")
-        <> takeWhile1P (Just "hex digit") isHexDigit)
-
-splice_ :: Scanner Text
-splice_ = undefined
-
-sp_ :: Scanner Text
-sp_ = takeWhileP (Just "whitespace") (isSpace)
+spaces :: Scanner Text
+spaces = takeWhileP (Just "white space") isSpace
 
 eqopt_ :: Scanner Text
-eqopt_ = option "" (sp_ <> charT '=')
-
--- infixr 7 &#
--- (&#) :: Scanner Text -> TokenType -> Scanner Token
--- s &# t = (,) t <$> s
+eqopt_ = option "" (spaces *> charT '=')
 
 sep_ :: [Char] -> [Text] -> Scanner Text
 sep_ seps strs = T.map dashes <$> (try $ mconcat $
@@ -62,86 +48,118 @@ sep_ seps strs = T.map dashes <$> (try $ mconcat $
         dashes '_' = '-'
         dashes c = c
 
+directive_ :: Text -> Scanner Text
+directive_ d = string d <* notFollowedBy letter_
+
 declarations :: Scanner Token
 declarations = let seps = "-_" in choice
     [
-      PERCENT_NONASSOC                    <$ string "%binary"
-    , PERCENT_CODE                        <$ string "%code"
-    , PERCENT_FLAG                        <$ string "%debug"
-    , PERCENT_DEFAULT_PREC                <$ sep_ seps ["%default", "prec"]
-    , PERCENT_DEFINES                     <$ string "%defines"
-    , PERCENT_DEFINE                      <$ string "%define"
-    , PERCENT_DESTRUCTOR                  <$ string "%destructor"
-    , PERCENT_DPREC                       <$ string "%dprec"
-    , PERCENT_EMPTY                       <$ string "%empty"
-    , PERCENT_ERROR_VERBOSE               <$ sep_ seps ["%error", "verbose"] -- deprecated
-    , PERCENT_EXPECT                      <$ string "%expect"
-    , PERCENT_EXPECT_RR                   <$ sep_ seps ["%expect", "rr"] -- deprecated
-    , PERCENT_FILE_PREFIX                 <$ try (string "%file-prefix" <> eqopt_) -- deprecated
-    , PERCENT_INITIAL_ACTION              <$ string "%initial-action"
-    , PERCENT_GLR_PARSER                  <$ string "%glr-parser"
-    , PERCENT_LANGUAGE                    <$ string "%language"
-    , PERCENT_LEFT                        <$ string "%left"
-    , PERCENT_PARAM                       <$ string "%lex-param"
-    , PERCENT_FLAG                        <$ string "%locations"
-    , PERCENT_MERGE                       <$ string "%merge"
-    , PERCENT_NAME_PREFIX                 <$ try (sep_ seps ["%name", "prefix"] <> eqopt_ <> sp_)  -- deprecated
-    , PERCENT_NO_DEFAULT_PREC             <$ sep_ seps ["%no", "default", "prec"] -- deprecated
-    , PERCENT_NO_LINES                    <$ sep_ seps ["%no", "lines"] -- deprecated
-    , PERCENT_NONASSOC                    <$ string "%nonassoc"
-    , PERCENT_NONDETERMINISTIC_PARSER     <$ string "%nondeterministic-parser"
-    , PERCENT_NTERM                       <$ string "%nterm"
-    , PERCENT_OUTPUT                      <$ try (string "%output" <> eqopt_) -- deprecated
-    -- , sep_ seps ["%fixed", "output", "files"]       DEPRECATED ("%output \"y.tab.c\"");
-    , PERCENT_PARAM                       <$ string "%param"
-    , PERCENT_PARAM                       <$ string "%parse-param"
-    , PERCENT_PREC                        <$ string "%prec"
-    , PERCENT_PRECEDENCE                  <$ string "%precedence"
-    , PERCENT_PRINTER                     <$ string "%printer"
-    , PERCENT_PURE_PARSER                 <$ sep_ seps ["%pure", "parser"] -- deprecated
-    , PERCENT_REQUIRE                     <$ string "%require"
-    , PERCENT_RIGHT                       <$ string "%right"
-    , PERCENT_SKELETON                    <$ string "%skeleton"
-    , PERCENT_START                       <$ string "%start"
-    , PERCENT_TOKEN                       <$ string "%term"
-    , PERCENT_TOKEN                       <$ string "%token"
-    , PERCENT_TOKEN_TABLE                 <$ sep_ seps ["%token", "table"] -- deprecated
-    , PERCENT_TYPE                        <$ string "%type"
-    , PERCENT_UNION                       <$ string "%union"
-    , PERCENT_VERBOSE                     <$ string "%verbose"
-    , PERCENT_YACC                        <$ string "%yacc"
+      PERCENT_NONASSOC                    <$ directive_ "binary"
+    , PERCENT_CODE                        <$ directive_ "code"
+    , PERCENT_FLAG                        <$> directive_ "debug"
+    , PERCENT_DEFAULT_PREC                <$ sep_ seps ["default", "prec"]
+    , PERCENT_DEFINES                     <$ directive_ "defines"
+    , PERCENT_DEFINE                      <$ directive_ "define"
+    , PERCENT_DESTRUCTOR                  <$ directive_ "destructor"
+    , PERCENT_DPREC                       <$ directive_ "dprec"
+    , PERCENT_EMPTY                       <$ directive_ "empty"
+    , PERCENT_ERROR_VERBOSE               <$ sep_ seps ["error", "verbose"] -- deprecated
+    , PERCENT_EXPECT                      <$ directive_ "expect"
+    , PERCENT_EXPECT_RR                   <$ sep_ seps ["expect", "rr"] -- deprecated
+    , PERCENT_FILE_PREFIX                 <$ try (string "file-prefix" <> eqopt_) -- deprecated
+    , PERCENT_INITIAL_ACTION              <$ directive_ "initial-action"
+    , PERCENT_GLR_PARSER                  <$ directive_ "glr-parser"
+    , PERCENT_LANGUAGE                    <$ directive_ "language"
+    , PERCENT_LEFT                        <$ directive_ "left"
+    , PERCENT_PARAM                       <$ directive_ "lex-param"
+    , PERCENT_FLAG                        <$> directive_ "locations"
+    , PERCENT_MERGE                       <$ directive_ "merge"
+    , PERCENT_NAME_PREFIX                 <$ try (sep_ seps ["name", "prefix"] <> eqopt_)  -- deprecated
+    , PERCENT_NO_DEFAULT_PREC             <$ sep_ seps ["no", "default", "prec"] -- deprecated
+    , PERCENT_NO_LINES                    <$ sep_ seps ["no", "lines"] -- deprecated
+    , PERCENT_NONASSOC                    <$ directive_ "nonassoc"
+    , PERCENT_NONDETERMINISTIC_PARSER     <$ directive_ "nondeterministic-parser"
+    , PERCENT_NTERM                       <$ directive_ "nterm"
+    , PERCENT_OUTPUT                      <$ try (string "output" <> eqopt_) -- deprecated
+    , PERCENT_FIXED_OUTPUT_FILES          <$ sep_ seps ["fixed", "output", "files"] -- deprecated
+    , PERCENT_PARAM                       <$ directive_ "param"
+    , PERCENT_PARAM                       <$ directive_ "parse-param"
+    , PERCENT_PREC                        <$ directive_ "prec"
+    , PERCENT_PRECEDENCE                  <$ directive_ "precedence"
+    , PERCENT_PRINTER                     <$ directive_ "printer"
+    , PERCENT_PURE_PARSER                 <$ sep_ seps ["pure", "parser"] -- deprecated
+    , PERCENT_REQUIRE                     <$ directive_"require"
+    , PERCENT_RIGHT                       <$ directive_"right"
+    , PERCENT_SKELETON                    <$ directive_"skeleton"
+    , PERCENT_START                       <$ directive_"start"
+    , PERCENT_TOKEN                       <$ directive_"term"
+    , PERCENT_TOKEN_TABLE                 <$ sep_ seps ["token", "table"] -- deprecated
+    , PERCENT_TOKEN                       <$ directive_"token"
+    , PERCENT_TYPE                        <$ directive_ "type"
+    , PERCENT_UNION                       <$ directive_ "union"
+    , PERCENT_VERBOSE                     <$ directive_ "verbose"
+    , PERCENT_YACC                        <$ directive_ "yacc"
     ]
-
-spaces :: Scanner Token
-spaces = undefined
-
-lineComment :: Scanner Token
-lineComment = undefined
-
-blockComment :: Scanner Token
-blockComment = undefined
-
-lineDirective :: Scanner Token
-lineDirective = undefined
 
 colon :: Scanner Token
-colon = COLON <$ string ":"
+colon = COLON <$ charT ':'
 
 equal :: Scanner Token
-equal = EQUAL <$ string "="
+equal = EQUAL <$ charT '='
 
 pipe :: Scanner Token
-pipe = PIPE <$ string "|"
+pipe = PIPE <$ charT '|'
 
 semicolon :: Scanner Token
-semicolon = SEMICOLON <$ string ";"
+semicolon = SEMICOLON <$ charT ';'
 
-identifier :: Scanner Token
-identifier = choice [
-      BRACKETED_ID <$> try (id_ <> charT '[' <> id_ <> charT ']' <* lookAhead spaceOrEof)
-    , ID_COLON <$> try (id_ <> charT ':' <* lookAhead spaceOrEof)
-    , ID <$> try (id_ <* lookAhead spaceOrEof)
+bracketedId_ :: Text -> Scanner Token
+bracketedId_ pre = try $ BRACKETED_ID <$> ((pre <>) <$> id_ <> charT ']')
+
+identifier_ :: Text -> Scanner Token
+identifier_ pre = choice [
+      try $ (pre <>) <$> charT '[' >>= bracketedId_
+    , pure (ID_COLON pre) <* lookAhead (charT ':')
+    , pure (ID pre) <* lookAhead spaceOrEof
     ]
+
+percentPercent_ :: Scanner Token
+percentPercent_ = do
+    ss <- get
+    put ss { section = succ (section ss) }
+    pure PERCENT_PERCENT
+
+percent_ :: Text -> Scanner Token
+percent_ pre = choice [
+      try $ charT '%' >> percentPercent_
+    , try $ (pre <>) <$> charT '{' >>= prologue_
+    , try $ (pre <>) <$> charT '?' <> spaces <> charT '{' >>= predicate_
+    , declarations
+    ]
+
+predicate_ :: Text -> Scanner Token
+predicate_ pre = undefined
+
+prologue_ :: Text -> Scanner Token
+prologue_ pre = undefined
+
+initial_ :: Scanner Token
+initial_ = do
+    sect <- gets section
+    case sect of
+        Epilogue -> EPILOGUE <$> takeRest <* eof
+        _ -> choice [
+              try $ charT '%' >>= percent_
+            , colon
+            , equal
+            , pipe
+            , semicolon
+            , try $ id_ >>= identifier_
+            , INT <$> L.decimal
+            , INT <$> L.hexadecimal
+            , try $ charT '[' >>= bracketedId_
+            , word
+            ]
 
 whitespace :: Scanner ()
 whitespace = L.space M.space1
@@ -152,23 +170,14 @@ word :: Scanner Token
 word = STRING <$> takeWhile1P (Just "word") (not . isSpace)
 
 token :: Scanner Token
-token = choice [
-      declarations
-    , colon
-    , equal
-    , pipe
-    , semicolon
-    , identifier
-    , word
-    ]
-
-token_ :: Scanner Token
-token_ = L.lexeme whitespace token
+token = L.lexeme whitespace initial_
 
 tokens :: Scanner [Token]
-tokens = whitespace >> many token_
+tokens = whitespace >> manyTill token eof
 
 scan :: Text -> Maybe [Token]
-scan = parseMaybe tokens
+scan = parseMaybe (runScanner initialState tokens)
+    where initialState = ScanState Prologue 0
+
 
 

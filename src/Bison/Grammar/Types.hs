@@ -1,17 +1,31 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Bison.Grammar.Types where
 
 import Data.Text (Text)
 import Data.Void (Void)
 import Text.Megaparsec hiding (Token)
+import Control.Applicative (Alternative, liftA2)
+import Control.Monad (MonadPlus)
+import Control.Monad.State (StateT, evalStateT)
+import Control.Monad.State.Class (MonadState)
 
-type Scanner = Parsec Void Text
--- type Token = (TokenType, Text)
+type Parser = Parsec Void Text
 
--- data ScanSection
---     = Prologue
---     | Grammar
---     | Epilogue
---     deriving (Show, Read, Eq, Ord, Enum)
+newtype Scanner a = Scanner {
+        runScanner' :: StateT ScanState Parser a
+    } deriving (Functor, Applicative, Alternative, Monad, MonadPlus,
+                MonadState ScanState, MonadParsec Void Text)
+
+data ScanState = ScanState {
+        section :: ScanSection
+    ,   nesting :: Int
+    } deriving (Show, Read, Eq)
+
+data ScanSection
+    = Prologue
+    | Grammar
+    | Epilogue
+    deriving (Show, Read, Eq, Ord, Enum)
 
 data Token
     = STRING Text
@@ -34,8 +48,9 @@ data Token
     | PERCENT_ERROR_VERBOSE
     | PERCENT_EXPECT
     | PERCENT_EXPECT_RR
-    | PERCENT_FLAG
+    | PERCENT_FLAG Text
     | PERCENT_FILE_PREFIX
+    | PERCENT_FIXED_OUTPUT_FILES
     | PERCENT_GLR_PARSER
     | PERCENT_INITIAL_ACTION
     | PERCENT_LANGUAGE
@@ -56,7 +71,7 @@ data Token
     | BRACKETED_ID Text
     | CHAR
     | COLON
-    | EPILOGUE
+    | EPILOGUE Text
     | EQUAL
     | ID Text
     | ID_COLON Text
@@ -67,9 +82,19 @@ data Token
     | TAG
     | TAG_ANY
     | TAG_NONE
-    | INT
+    | INT Int
     | PERCENT_PARAM
     | PERCENT_UNION
     | PERCENT_EMPTY
     deriving (Show, Read, Eq, Ord)
+
+instance Semigroup a => Semigroup (Scanner a) where
+    (<>) = liftA2 (<>)
+
+instance Monoid a => Monoid (Scanner a) where
+    mempty = pure mempty
+    mappend = (<>)
+
+runScanner :: ScanState -> Scanner a -> Parser a
+runScanner state = flip evalStateT state . runScanner'
 
