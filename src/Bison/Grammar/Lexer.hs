@@ -179,7 +179,7 @@ prologue :: Text -> Scanner Token
 prologue pre = (pre <>) <$> (test '{' >> codeBlock) <&> PROLOGUE
 
 characterLit :: Scanner Char
-characterLit = M.char '\'' >> L.charLiteral <* M.char '\"'
+characterLit = M.char '\'' >> L.charLiteral <* M.char '\''
 
 stringLit :: Scanner Text
 stringLit = M.char '"' >> (T.pack <$> manyTill L.charLiteral (M.char '"'))
