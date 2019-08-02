@@ -18,7 +18,6 @@ newtype Scanner a = Scanner {
 
 data ScanState = ScanState {
         section :: ScanSection
-    ,   nesting :: Int
     } deriving (Show, Read, Eq)
 
 data ScanSection
@@ -66,10 +65,10 @@ data Token
     | PERCENT_TOKEN_TABLE
     | PERCENT_VERBOSE
     | PERCENT_YACC
-    | BRACED_CODE
-    | BRACED_PREDICATE
+    | BRACED_CODE Text
+    | BRACED_PREDICATE Text
     | BRACKETED_ID Text
-    | CHAR
+    | CHAR Char
     | COLON
     | EPILOGUE Text
     | EQUAL
@@ -77,9 +76,9 @@ data Token
     | ID_COLON Text
     | PERCENT_PERCENT
     | PIPE
-    | PROLOGUE
+    | PROLOGUE Text
     | SEMICOLON
-    | TAG
+    | TAG Text
     | TAG_ANY
     | TAG_NONE
     | INT Int
@@ -97,4 +96,3 @@ instance Monoid a => Monoid (Scanner a) where
 
 runScanner :: ScanState -> Scanner a -> Parser a
 runScanner state = flip evalStateT state . runScanner'
-
