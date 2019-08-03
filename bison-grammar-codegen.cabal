@@ -35,3 +35,17 @@ executable bison-gen
     build-depends:
         bison-grammar-codegen
       , optparse-applicative
+
+test-suite test
+    import: props
+    type: exitcode-stdio-1.0
+    main-is: Spec.hs
+    hs-source-dirs:
+        test
+    build-depends:
+        hspec ==2.*
+      , bison-grammar-codegen
+    other-modules:
+        Paths_bison_grammar_codegen
+    build-tool-depends: hspec-discover:hspec-discover == 2.*
+
