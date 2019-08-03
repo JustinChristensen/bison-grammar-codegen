@@ -36,7 +36,7 @@ executable bison-gen
         bison-grammar-codegen
       , optparse-applicative
 
-test-suite test
+test-suite tests
     import: props
     type: exitcode-stdio-1.0
     main-is: Spec.hs
@@ -44,8 +44,13 @@ test-suite test
         test
     build-depends:
         hspec ==2.*
+      , hspec-megaparsec
+      , megaparsec
+      , text
       , bison-grammar-codegen
     other-modules:
-        Paths_bison_grammar_codegen
+        Helper
+      , Bison.Grammar.LexerSpec
+      , Paths_bison_grammar_codegen
     build-tool-depends: hspec-discover:hspec-discover == 2.*
 

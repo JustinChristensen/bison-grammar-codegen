@@ -7,7 +7,7 @@ import Bison.Grammar.Lexer
 import Bison.Grammar.Types
 
 productions :: ([Token] -> IO ()) -> IO ()
-productions f = do
+productions _ = do
     grammarSpec <- T.getContents
     let mTokens = scan grammarSpec
     case mTokens of

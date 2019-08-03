@@ -3,20 +3,18 @@ module Bison.Grammar.Types where
 
 import Data.Text (Text)
 import Data.Void (Void)
-import Text.Megaparsec hiding (Token)
+import Text.Megaparsec hiding (Token, runParser, runParser')
 import Control.Applicative (Alternative, liftA2)
 import Control.Monad (MonadPlus)
 import Control.Monad.State (StateT, evalStateT)
 import Control.Monad.State.Class (MonadState)
 
-type Parser = Parsec Void Text
-
-newtype Scanner a = Scanner {
-        runScanner' :: StateT ScanState Parser a
+newtype Parser a = Parser {
+        runParser' :: StateT ParseState (Parsec Void Text) a
     } deriving (Functor, Applicative, Alternative, Monad, MonadPlus,
-                MonadState ScanState, MonadParsec Void Text)
+                MonadState ParseState, MonadParsec Void Text)
 
-data ScanState = ScanState {
+data ParseState = ParseState {
         section :: ScanSection
     } deriving (Show, Read, Eq)
 
@@ -28,6 +26,18 @@ data ScanSection
 
 data Token
     = STRING Text
+    | BRACED_CODE Text
+    | BRACED_PREDICATE Text
+    | BRACKETED_ID Text
+    | CHAR Char
+    | EPILOGUE Text
+    | ID Text
+    | ID_COLON Text
+    | INT Int
+    | PROLOGUE Text
+    | PERCENT_FLAG Text
+    | PERCENT_PARAM Text
+    | TAG Text
     | PERCENT_TOKEN
     | PERCENT_NTERM
     | PERCENT_TYPE
@@ -47,7 +57,6 @@ data Token
     | PERCENT_ERROR_VERBOSE
     | PERCENT_EXPECT
     | PERCENT_EXPECT_RR
-    | PERCENT_FLAG Text
     | PERCENT_FILE_PREFIX
     | PERCENT_FIXED_OUTPUT_FILES
     | PERCENT_GLR_PARSER
@@ -65,34 +74,23 @@ data Token
     | PERCENT_TOKEN_TABLE
     | PERCENT_VERBOSE
     | PERCENT_YACC
-    | BRACED_CODE Text
-    | BRACED_PREDICATE Text
-    | BRACKETED_ID Text
-    | CHAR Char
     | COLON
-    | EPILOGUE Text
     | EQUAL
-    | ID Text
-    | ID_COLON Text
     | PERCENT_PERCENT
     | PIPE
-    | PROLOGUE Text
     | SEMICOLON
-    | TAG Text
     | TAG_ANY
     | TAG_NONE
-    | INT Int
-    | PERCENT_PARAM
     | PERCENT_UNION
     | PERCENT_EMPTY
     deriving (Show, Read, Eq, Ord)
 
-instance Semigroup a => Semigroup (Scanner a) where
+instance Semigroup a => Semigroup (Parser a) where
     (<>) = liftA2 (<>)
 
-instance Monoid a => Monoid (Scanner a) where
+instance Monoid a => Monoid (Parser a) where
     mempty = pure mempty
     mappend = (<>)
 
-runScanner :: ScanState -> Scanner a -> Parser a
-runScanner state = flip evalStateT state . runScanner'
+runParser :: ParseState -> Parser a -> Parsec Void Text a
+runParser state = flip evalStateT state . runParser'

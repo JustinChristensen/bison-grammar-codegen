@@ -6,7 +6,7 @@ import Data.Char (isAlpha, isDigit, isSpace)
 import Data.List (intersperse)
 import Control.Applicative hiding (many, some)
 import Control.Monad.State (get, put, gets)
-import Text.Megaparsec hiding (Token, token, tokens)
+import Text.Megaparsec hiding (Token, token, tokens, runParser)
 import Text.Megaparsec.Char (string)
 import qualified Text.Megaparsec.Char as M
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -14,19 +14,19 @@ import Data.Text (Text)
 import qualified Data.Text as T (singleton, unpack, pack, map)
 import Bison.Grammar.Types
 
-test :: Char -> Scanner Char
+test :: Char -> Parser Char
 test = lookAhead . M.char
 
-spaceOrEof :: Scanner ()
+spaceOrEof :: Parser ()
 spaceOrEof = (() <$ M.spaceChar) <|> eof
 
-satisfyT :: (Char -> Bool) -> Scanner Text
+satisfyT :: (Char -> Bool) -> Parser Text
 satisfyT f = T.singleton <$> satisfy f
 
-anySingleT :: Scanner Text
+anySingleT :: Parser Text
 anySingleT = T.singleton <$> anySingle
 
-charT :: Char -> Scanner Text
+charT :: Char -> Parser Text
 charT c = T.singleton <$> M.char c
 
 isLetter :: Char -> Bool
@@ -35,197 +35,487 @@ isLetter c = isAlpha c || c `elem` ['.', '_']
 isLetterOrNum :: Char -> Bool
 isLetterOrNum c = isLetter c || c == '-' || isDigit c
 
-letter_ :: Scanner Text
+letter_ :: Parser Text
 letter_ = satisfyT isLetter <?> "letter, '.', or '_'"
 
-letterOrNum_ :: Scanner Text
+letterOrNum_ :: Parser Text
 letterOrNum_ = satisfyT isLetterOrNum <?> "alphanumeric character, '.', or '_'"
 
-id_ :: Scanner Text
+id_ :: Parser Text
 id_ = letter_ <>
     takeWhileP (Just "alphanumeric character, '.', or '_'") isLetterOrNum
 
-spaces :: Scanner Text
+spaces :: Parser Text
 spaces = takeWhileP (Just "white space") isSpace
 
-eqopt :: Scanner Text
-eqopt = option "" (spaces *> charT '=')
+eqopt_ :: Parser Text
+eqopt_ = option "" (spaces *> charT '=')
 
-lineWithPrefix :: Text -> Scanner Text
+lineWithPrefix :: Text -> Parser Text
 lineWithPrefix p = string p <> takeWhileP (Just "character") (/= '\n')
 
-nested :: Text -> Text -> Scanner Text -> Scanner Text
+nested :: Text -> Text -> Parser Text -> Parser Text
 nested start end content =
         start' <> (mconcat <$> manyTill content (lookAhead end')) <> end'
     where
         start' = string start
         end' = string end
 
-codeBlock :: Scanner Text
-codeBlock = nested "{" "}" codeBlock
-        <|> (stringLit >>= wrap '"')
-        <|> (T.singleton <$> characterLit >>= wrap '\'')
-        <|> nested "/*" "*/" anySingleT
-        <|> lineWithPrefix "//"
-        <|> anySingleT
-    where
-        wrap c str = let c' = T.singleton c
-                    in pure $ c' <> str <> c'
-
-tag :: Scanner Text
-tag = nested "<" ">" (try tag <|> try (string "->") <|> satisfyT (`notElem` ['<', '>']))
-
-sep_ :: [Char] -> [Text] -> Scanner Text
-sep_ seps strs = (T.map dashes <$> (try $ mconcat $
+kwsep :: [Char] -> [Text] -> Parser Text
+kwsep seps strs = (T.map dashes <$> (try $ mconcat $
         intersperse (satisfyT (`elem` seps)) (string <$> strs)))
         <?> T.unpack (mconcat $ intersperse "-" strs)
     where
         dashes '_' = '-'
         dashes c = c
 
-directive_ :: Text -> Scanner Text
-directive_ d = string d <* notFollowedBy letter_
-
-declarations :: Scanner Token
-declarations = let seps = "-_" in choice
-    [
-      directive_ "binary"                                         $> PERCENT_NONASSOC
-    , directive_ "code"                                           $> PERCENT_CODE
-    , directive_ "debug"                                         <&> PERCENT_FLAG
-    , sep_ seps ["default", "prec"]                               $> PERCENT_DEFAULT_PREC
-    , directive_ "defines"                                        $> PERCENT_DEFINES
-    , directive_ "define"                                         $> PERCENT_DEFINE
-    , directive_ "destructor"                                     $> PERCENT_DESTRUCTOR
-    , directive_ "dprec"                                          $> PERCENT_DPREC
-    , directive_ "empty"                                          $> PERCENT_EMPTY
-    , sep_ seps ["error", "verbose"]                              $> PERCENT_ERROR_VERBOSE -- deprecated
-    , directive_ "expect"                                         $> PERCENT_EXPECT
-    , sep_ seps ["expect", "rr"]                                  $> PERCENT_EXPECT_RR -- deprecated
-    , try (string "file-prefix" <> eqopt)                         $> PERCENT_FILE_PREFIX -- deprecated
-    , directive_ "initial-action"                                 $> PERCENT_INITIAL_ACTION
-    , directive_ "glr-parser"                                     $> PERCENT_GLR_PARSER
-    , directive_ "language"                                       $> PERCENT_LANGUAGE
-    , directive_ "left"                                           $> PERCENT_LEFT
-    , directive_ "lex-param"                                      $> PERCENT_PARAM
-    , directive_ "locations"                                     <&> PERCENT_FLAG
-    , directive_ "merge"                                          $> PERCENT_MERGE
-    , try (sep_ seps ["name", "prefix"] <> eqopt)                 $> PERCENT_NAME_PREFIX -- deprecated
-    , sep_ seps ["no", "default", "prec"]                         $> PERCENT_NO_DEFAULT_PREC -- deprecated
-    , sep_ seps ["no", "lines"]                                   $> PERCENT_NO_LINES -- deprecated
-    , directive_ "nonassoc"                                       $> PERCENT_NONASSOC
-    , directive_ "nondeterministic-parser"                        $> PERCENT_NONDETERMINISTIC_PARSER
-    , directive_ "nterm"                                          $> PERCENT_NTERM
-    , try (string "output" <> eqopt)                              $> PERCENT_OUTPUT -- deprecated
-    , sep_ seps ["fixed", "output", "files"]                      $> PERCENT_FIXED_OUTPUT_FILES -- deprecated
-    , directive_ "param"                                          $> PERCENT_PARAM
-    , directive_ "parse-param"                                    $> PERCENT_PARAM
-    , directive_ "prec"                                           $> PERCENT_PREC
-    , directive_ "precedence"                                     $> PERCENT_PRECEDENCE
-    , directive_ "printer"                                        $> PERCENT_PRINTER
-    , sep_ seps ["pure", "parser"]                                $> PERCENT_PURE_PARSER -- deprecated
-    , directive_"require"                                         $> PERCENT_REQUIRE
-    , directive_"right"                                           $> PERCENT_RIGHT
-    , directive_"skeleton"                                        $> PERCENT_SKELETON
-    , directive_"start"                                           $> PERCENT_START
-    , directive_"term"                                            $> PERCENT_TOKEN
-    , sep_ seps ["token", "table"]                                $> PERCENT_TOKEN_TABLE -- deprecated
-    , directive_"token"                                           $> PERCENT_TOKEN
-    , directive_ "type"                                           $> PERCENT_TYPE
-    , directive_ "union"                                          $> PERCENT_UNION
-    , directive_ "verbose"                                        $> PERCENT_VERBOSE
-    , directive_ "yacc"                                           $> PERCENT_YACC
-    ]
-
-colon :: Scanner Token
-colon = charT ':' $> COLON
-
-equal :: Scanner Token
-equal = charT '=' $> EQUAL
-
-pipe :: Scanner Token
-pipe = charT '|' $> PIPE
-
-semicolon :: Scanner Token
-semicolon = charT ';' $> SEMICOLON
-
-bracketedId :: Text -> Scanner Token
-bracketedId pre = try $ ((pre <>) <$> id_ <> charT ']') <&> BRACKETED_ID
-
-identifier :: Text -> Scanner Token
-identifier pre = choice [
-      try $ (pre <>) <$> charT '[' >>= bracketedId
-    , test ':' $> ID_COLON pre
-    , ID pre <$ notFollowedBy letter_
-    ]
-
-percentPercent :: Scanner Token
-percentPercent = do
+percentPercent :: Parser Token
+percentPercent = token_ $ string "%%" >> do
     ss <- get
     put ss { section = succ (section ss) }
     pure PERCENT_PERCENT
 
-percent :: Text -> Scanner Token
-percent pre = choice [
-      try $ charT '%' >> percentPercent
-    , try $ prologue pre
-    , try $ predicate pre
-    , declarations
-    ]
+predicate' :: Parser Text
+predicate' = try $ string "%?" <> spaces <> bracedCode'
 
-predicate :: Text -> Scanner Token
-predicate pre =  (pre <>) <$> charT '?' <> spaces <> (test '{' >> codeBlock) <&> BRACED_PREDICATE
+predicate :: Parser Token
+predicate =  token_ predicate' <&> BRACED_PREDICATE
 
-prologue :: Text -> Scanner Token
-prologue pre = (pre <>) <$> (test '{' >> codeBlock) <&> PROLOGUE
+prologue' :: Parser Text
+prologue' = try $ charT '%' <> bracedCode'
 
-characterLit :: Scanner Char
-characterLit = M.char '\'' >> L.charLiteral <* M.char '\''
+prologue :: Parser Token
+prologue = token_ prologue' <&> PROLOGUE
 
-stringLit :: Scanner Text
-stringLit = M.char '"' >> (T.pack <$> manyTill L.charLiteral (M.char '"'))
+kwsep_ :: [Text] -> Parser Text
+kwsep_ = kwsep "-_"
 
-decimal :: Scanner Token
-decimal = L.decimal <* notFollowedBy letter_ <&> INT
+kw_ :: Text -> Parser Text
+kw_ d = string d <* notFollowedBy letter_
 
-hexadecimal :: Scanner Token
-hexadecimal = M.char '0' >> satisfy (`elem` ['x', 'X']) >>
-    L.hexadecimal <* notFollowedBy letter_ <&> INT
+pCode' :: Parser Text
+pCode' = kw_ "%code"
 
-word :: Scanner Token
-word = do
+pCode :: Parser Token
+pCode = token_ pCode' $> PERCENT_CODE
+
+pDebug' :: Parser Text
+pDebug' = kw_ "%debug"
+
+pLocations' :: Parser Text
+pLocations' = kw_ "%locations"
+
+pFlag :: Parser Token
+pFlag = token_ (pDebug' <|> pLocations') <&> PERCENT_FLAG
+
+pDefaultPrec' :: Parser Text
+pDefaultPrec' = kwsep_ ["%default", "prec"]
+
+pDefaultPrec :: Parser Token
+pDefaultPrec = token_ pDefaultPrec' $> PERCENT_DEFAULT_PREC
+
+pDefines' :: Parser Text
+pDefines' = kw_ "%defines"
+
+pDefines :: Parser Token
+pDefines = token_ pDefines' $> PERCENT_DEFINES
+
+pDefine' :: Parser Text
+pDefine' = kw_ "%define"
+
+pDefine :: Parser Token
+pDefine = token_ pDefine' $> PERCENT_DEFINE
+
+pDestructor' :: Parser Text
+pDestructor' = kw_ "%destructor"
+
+pDestructor :: Parser Token
+pDestructor = token_ pDestructor' $> PERCENT_DESTRUCTOR
+
+pDprec' :: Parser Text
+pDprec' = kw_ "%dprec"
+
+pDprec :: Parser Token
+pDprec = token_ pDprec' $> PERCENT_DPREC
+
+pEmpty' :: Parser Text
+pEmpty' = kw_ "%empty"
+
+pEmpty :: Parser Token
+pEmpty = token_ pEmpty' $> PERCENT_EMPTY
+
+pErrorVerbose' :: Parser Text
+pErrorVerbose' = kwsep_ ["%error", "verbose"]
+
+pErrorVerbose :: Parser Token
+pErrorVerbose = token_ pErrorVerbose' $> PERCENT_ERROR_VERBOSE
+
+pExpect' :: Parser Text
+pExpect' = kw_ "%expect"
+
+pExpect :: Parser Token
+pExpect = token_ pExpect' $> PERCENT_EXPECT
+
+pExpectRr' :: Parser Text
+pExpectRr' = kwsep_ ["%expect", "rr"]
+
+pExpectRr :: Parser Token
+pExpectRr = token_ pExpectRr' $> PERCENT_EXPECT_RR
+
+pFilePrefix' :: Parser Text
+pFilePrefix' = try $ string "%file-prefix" <> eqopt_
+
+pFilePrefix :: Parser Token
+pFilePrefix = token_ pFilePrefix' $> PERCENT_FILE_PREFIX
+
+pInitialAction' :: Parser Text
+pInitialAction' = kw_ "%initial-action"
+
+pInitialAction :: Parser Token
+pInitialAction = token_ pInitialAction' $> PERCENT_INITIAL_ACTION
+
+pGlrParser' :: Parser Text
+pGlrParser' = kw_ "%glr-parser"
+
+pGlrParser :: Parser Token
+pGlrParser = token_ pGlrParser' $> PERCENT_GLR_PARSER
+
+pLanguage' :: Parser Text
+pLanguage' = kw_ "%language"
+
+pLanguage :: Parser Token
+pLanguage = token_ pLanguage' $> PERCENT_LANGUAGE
+
+pLeft' :: Parser Text
+pLeft' = kw_ "%left"
+
+pLeft :: Parser Token
+pLeft = token_ pLeft' $> PERCENT_LEFT
+
+pMerge' :: Parser Text
+pMerge' = kw_ "%merge"
+
+pMerge :: Parser Token
+pMerge = token_ pMerge' $> PERCENT_MERGE
+
+pNamePrefix' :: Parser Text
+pNamePrefix' = try (kwsep_ ["%name", "prefix"] <> eqopt_)
+
+pNamePrefix :: Parser Token
+pNamePrefix = pNamePrefix' $> PERCENT_NAME_PREFIX
+
+pNoDefaultPrec' :: Parser Text
+pNoDefaultPrec' = kwsep_ ["%no", "default", "prec"]
+
+pNoDefaultPrec :: Parser Token
+pNoDefaultPrec = token_ pNoDefaultPrec $> PERCENT_NO_DEFAULT_PREC
+
+pNoLines' :: Parser Text
+pNoLines' = kwsep_ ["%no", "lines"]
+
+pNoLines :: Parser Token
+pNoLines = token_ pNoLines' $> PERCENT_NO_LINES
+
+pBinary' :: Parser Text
+pBinary' = kw_ "%binary"
+
+pNonAssoc' :: Parser Text
+pNonAssoc' = kw_ "%nonassoc"
+
+pNonAssoc :: Parser Token
+pNonAssoc = token_ (pBinary' <|> pNonAssoc') $> PERCENT_NONASSOC
+
+pNonDeterministicParser' :: Parser Text
+pNonDeterministicParser' = kw_ "%nondeterministic-parser"
+
+pNonDeterministicParser :: Parser Token
+pNonDeterministicParser = token_ pNonDeterministicParser' $> PERCENT_NONDETERMINISTIC_PARSER
+
+pNterm' :: Parser Text
+pNterm' = kw_ "%nterm"
+
+pNterm :: Parser Token
+pNterm = token_ pNterm' $> PERCENT_NTERM
+
+pOutput' :: Parser Text
+pOutput' = try $ string "%output" <> eqopt_
+
+pOutput :: Parser Token
+pOutput = token_ pOutput' $> PERCENT_OUTPUT
+
+pFixedOutputFiles' :: Parser Text
+pFixedOutputFiles' = kwsep_ ["%fixed", "output", "files"]
+
+pFixedOutputFiles :: Parser Token
+pFixedOutputFiles = token_ pFixedOutputFiles' $> PERCENT_FIXED_OUTPUT_FILES
+
+pParam' :: Parser Text
+pParam' = kw_ "%param"
+
+pLexParam' :: Parser Text
+pLexParam' = kw_ "%lex-param"
+
+pParseParam' :: Parser Text
+pParseParam' = kw_ "%parse-param"
+
+pParam :: Parser Token
+pParam = token_ (pParam' <|> pParseParam' <|> pLexParam') <&> PERCENT_PARAM
+
+pPrecedence' :: Parser Text
+pPrecedence' = kw_ "%precedence"
+
+pPrecedence :: Parser Token
+pPrecedence = token_ pPrecedence' $> PERCENT_PRECEDENCE
+
+pPrec' :: Parser Text
+pPrec' = kw_ "%prec"
+
+pPrec :: Parser Token
+pPrec = token_ pPrec' $> PERCENT_PREC
+
+pPrinter' :: Parser Text
+pPrinter' = kw_ "%printer"
+
+pPrinter :: Parser Token
+pPrinter = token_ pPrinter' $> PERCENT_PRINTER
+
+pPureParser' :: Parser Text
+pPureParser' = kwsep_ ["%pure", "parser"]
+
+pPureParser :: Parser Token
+pPureParser = token_ pPureParser' $> PERCENT_PURE_PARSER
+
+pRequire' :: Parser Text
+pRequire' = kw_ "%require"
+
+pRequire :: Parser Token
+pRequire = token_ pRequire' $> PERCENT_REQUIRE
+
+pRight' :: Parser Text
+pRight' = kw_ "%right"
+
+pRight :: Parser Token
+pRight = token_ pRight' $> PERCENT_RIGHT
+
+pSkeleton' :: Parser Text
+pSkeleton' = kw_ "%skeleton"
+
+pSkeleton :: Parser Token
+pSkeleton = token_ pSkeleton' $> PERCENT_SKELETON
+
+pStart' :: Parser Text
+pStart' = kw_ "%start"
+
+pStart :: Parser Token
+pStart = token_ pStart' $> PERCENT_START
+
+pTerm' :: Parser Text
+pTerm' = kw_ "%term"
+
+pTokenTable' :: Parser Text
+pTokenTable' = kwsep_ ["%token", "table"]
+
+pTokenTable :: Parser Token
+pTokenTable = token_ pTokenTable' $> PERCENT_TOKEN_TABLE
+
+pToken' :: Parser Text
+pToken' = kw_ "%token"
+
+pToken :: Parser Token
+pToken = token_ (pTerm' <|> pToken') $> PERCENT_TOKEN
+
+pType' :: Parser Text
+pType' = kw_ "%type"
+
+pType :: Parser Token
+pType = token_ pType' $> PERCENT_TYPE
+
+pUnion' :: Parser Text
+pUnion' = kw_ "%union"
+
+pUnion :: Parser Token
+pUnion = token_ pUnion' $> PERCENT_UNION
+
+pVerbose' :: Parser Text
+pVerbose' = kw_ "%verbose"
+
+pVerbose :: Parser Token
+pVerbose = token_ pVerbose' $> PERCENT_VERBOSE
+
+pYacc' :: Parser Text
+pYacc' = kw_ "%yacc"
+
+pYacc :: Parser Token
+pYacc = token_ pYacc' $> PERCENT_YACC
+
+colon :: Parser Token
+colon = token_ (charT ':') $> COLON
+
+equal :: Parser Token
+equal = token_ (charT '=') $> EQUAL
+
+pipe :: Parser Token
+pipe = token_ (charT '|') $> PIPE
+
+semicolon :: Parser Token
+semicolon = token_ (charT ';') $> SEMICOLON
+
+identifier' :: Parser Text
+identifier' = id_ <* notFollowedBy letter_
+
+identifier :: Parser Token
+identifier = token_ identifier' <&> ID
+
+idColon' :: Parser Text
+idColon' = id_ <* test ':'
+
+idColon :: Parser Token
+idColon = token_ idColon' <&> ID_COLON
+
+bracketedId' :: Parser Text
+bracketedId' = try $ option "" id_ <> charT '[' <> id_ <> charT ']'
+
+bracketedId :: Parser Token
+bracketedId = bracketedId' <&> BRACKETED_ID
+
+hexadecimal' :: Parser Int
+hexadecimal' = try $ M.char '0' >> satisfy (`elem` ['x', 'X']) >>
+    L.hexadecimal <* notFollowedBy letter_
+
+decimal' :: Parser Int
+decimal' = L.decimal <* notFollowedBy letter_
+
+integer_ :: Parser Token
+integer_ = token_ (hexadecimal' <|> decimal') <&> INT
+
+character' :: Parser Char
+character' = try $ M.char '\'' >> L.charLiteral <* M.char '\''
+
+character_ :: Parser Token
+character_ = character' <&> CHAR
+
+string' :: Parser Text
+string' = try $ M.char '"' >> (T.pack <$> manyTill L.charLiteral (M.char '"'))
+
+string_ :: Parser Token
+string_ = string' <&> STRING
+
+bracedCode' :: Parser Text
+bracedCode' = try $ test '{' >> (
+            nested "{" "}" bracedCode'
+        <|> (string' >>= wrap '"')
+        <|> (T.singleton <$> character' >>= wrap '\'')
+        <|> nested "/*" "*/" anySingleT
+        <|> lineWithPrefix "//"
+        <|> anySingleT)
+    where
+        wrap c str = let c' = T.singleton c
+                    in pure $ c' <> str <> c'
+
+bracedCode :: Parser Token
+bracedCode = token_ bracedCode' <&> BRACED_CODE
+
+tagAny' :: Parser Text
+tagAny' = string "<*>"
+
+tagAny :: Parser Token
+tagAny = token_ tagAny' $> TAG_ANY
+
+tagNone' :: Parser Text
+tagNone' = string "<>"
+
+tagNone :: Parser Token
+tagNone = token_ tagNone' $> TAG_NONE
+
+tag' :: Parser Text
+tag' = test '<' >> (nested "<" ">" (try tag' <|> try (string "->") <|> satisfyT (`notElem` ['<', '>'])))
+
+tag :: Parser Token
+tag = token_ tag' <&> TAG
+
+epilogue' :: Parser Text
+epilogue' = takeRest <* eof
+
+epilogue :: Parser Token
+epilogue = token_ epilogue' <&> EPILOGUE
+
+token :: Parser Token
+token = do
     sect <- gets section
     case sect of
-        Epilogue -> EPILOGUE <$> takeRest <* eof
+        Epilogue -> epilogue
         _ -> choice [
-              try $ charT '%' >>= percent
+              percentPercent
+            , prologue
+            , predicate
+            , pCode
+            , pDefaultPrec
+            , pDefines
+            , pDefine
+            , pDestructor
+            , pDprec
+            , pEmpty
+            , pErrorVerbose
+            , pExpect
+            , pExpectRr
+            , pFilePrefix
+            , pInitialAction
+            , pGlrParser
+            , pLanguage
+            , pLeft
+            , pFlag
+            , pMerge
+            , pNamePrefix
+            , pNoDefaultPrec
+            , pNoLines
+            , pNonAssoc
+            , pNonDeterministicParser
+            , pNterm
+            , pOutput
+            , pFixedOutputFiles
+            , pParam
+            , pPrecedence
+            , pPrec
+            , pPrinter
+            , pPureParser
+            , pRequire
+            , pRight
+            , pSkeleton
+            , pStart
+            , pTokenTable
+            , pToken
+            , pType
+            , pUnion
+            , pVerbose
+            , pYacc
             , colon
             , equal
             , pipe
             , semicolon
-            , try $ id_ >>= identifier
-            , try decimal
-            , try hexadecimal
-            , try characterLit <&> CHAR
-            , try stringLit <&> STRING
-            , test '{' >> try codeBlock <&> BRACED_CODE
-            , string "<*>" $> TAG_ANY
-            , string "<>" $> TAG_NONE
-            , test '<' >> try tag <&> TAG
-            , try $ charT '[' >>= bracketedId
+            , identifier
+            , idColon
+            , bracketedId
+            , integer_
+            , character_
+            , string_
+            , bracedCode
+            , tagAny
+            , tagNone
+            , tag
             ]
 
-whitespace :: Scanner ()
+whitespace :: Parser ()
 whitespace = L.space M.space1
     (L.skipLineComment "//")
     (L.skipBlockComment "/*" "*/")
 
-token :: Scanner Token
-token = L.lexeme whitespace word
+token_ :: Parser a -> Parser a
+token_ = L.lexeme whitespace
 
-tokens :: Scanner [Token]
+tokens :: Parser [Token]
 tokens = whitespace >> manyTill token eof
 
 scan :: Text -> Maybe [Token]
-scan = parseMaybe (runScanner initialState tokens)
-    where initialState = ScanState Prologue
+scan = parseMaybe (runParser initialState tokens)
+    where initialState = ParseState Prologue
 
