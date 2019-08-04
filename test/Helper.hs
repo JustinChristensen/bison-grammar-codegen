@@ -22,3 +22,18 @@ isAtomicGiven p v = M.runParser' (runStateT p initParserState) (initialState v)
 initParserState :: ParseState
 initParserState = ParseState Prologue
 
+isPrologue :: Token -> Bool
+isPrologue x = case x of
+    PROLOGUE _ -> True
+    _ -> False
+
+isBracedCode :: Token -> Bool
+isBracedCode x = case x of
+    BRACED_CODE _ -> True
+    _ -> False
+
+isBracedPredicate :: Token -> Bool
+isBracedPredicate x = case x of
+    BRACED_PREDICATE _ -> True
+    _ -> False
+

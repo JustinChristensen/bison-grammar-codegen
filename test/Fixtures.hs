@@ -6,3 +6,6 @@ import Data.Text.IO (readFile)
 
 prologueFixture :: IO Text
 prologueFixture = readFile "./test/Fixtures/prologue.y"
+
+bracedCodeFixture :: IO Text
+bracedCodeFixture = readFile "./test/Fixtures/bracedCode.y"

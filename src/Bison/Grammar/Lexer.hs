@@ -74,7 +74,7 @@ kwsep_ :: [Text] -> Parser Text
 kwsep_ = kwsep "-_"
 
 kw_ :: Text -> Parser Text
-kw_ d = try (string d <* notFollowedBy letter_)
+kw_ d = try $ string d <* notFollowedBy letter_
 
 percentPercent_ :: Parser Token
 percentPercent_ = makeToken $ string "%%" >> do
@@ -164,7 +164,7 @@ pExpectRr_ :: Parser Token
 pExpectRr_ = makeToken pExpectRr' $> PERCENT_EXPECT_RR
 
 pFilePrefix' :: Parser Text
-pFilePrefix' = try $ string "%file-prefix" #<> eqopt_
+pFilePrefix' = try $ kw_ "%file-prefix" #<> eqopt_
 
 pFilePrefix_ :: Parser Token
 pFilePrefix_ = makeToken pFilePrefix' $> PERCENT_FILE_PREFIX
@@ -239,7 +239,7 @@ pNterm_ :: Parser Token
 pNterm_ = makeToken pNterm' $> PERCENT_NTERM
 
 pOutput' :: Parser Text
-pOutput' = try $ string "%output" #<> eqopt_
+pOutput' = try $ kw_ "%output" #<> eqopt_
 
 pOutput_ :: Parser Token
 pOutput_ = makeToken pOutput' $> PERCENT_OUTPUT
@@ -362,7 +362,7 @@ semicolon_ :: Parser Token
 semicolon_ = makeToken (charT ';') $> SEMICOLON
 
 identifier' :: Parser Text
-identifier' = try $ id_ <* notFollowedBy (letter_ <|> charT ':')
+identifier' = try $ id_ <* notFollowedBy (letter_ <|> charT ':' <|> charT '[')
 
 identifier_ :: Parser Token
 identifier_ = makeToken identifier' <&> ID
@@ -371,7 +371,7 @@ idColon' :: Parser Text
 idColon' = try $ id_ <* test ':'
 
 idColon_ :: Parser Token
-idColon_ = makeToken idColon' <&> ID_COLON
+idColon_ = ((<> ":") <$> makeToken idColon') <&> ID_COLON
 
 bracketedId' :: Parser Text
 bracketedId' = try $ option "" id_ #<> charT '[' #<> id_ #<> charT ']'
