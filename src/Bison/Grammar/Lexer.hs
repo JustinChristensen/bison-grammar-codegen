@@ -2,6 +2,7 @@
 module Bison.Grammar.Lexer where
 
 import Data.Functor
+import Data.Void (Void)
 import Data.Char (isAlpha, isDigit, isSpace)
 import Data.List (intersperse)
 import Control.Applicative hiding (many, some)
@@ -42,7 +43,7 @@ letterOrNum_ :: Parser Text
 letterOrNum_ = satisfyT isLetterOrNum <?> "alphanumeric character, '.', or '_'"
 
 id_ :: Parser Text
-id_ = letter_ <>
+id_ = letter_ #<>
     takeWhileP (Just "alphanumeric character, '.', or '_'") isLetterOrNum
 
 spaces :: Parser Text
@@ -52,52 +53,52 @@ eqopt_ :: Parser Text
 eqopt_ = option "" (spaces *> charT '=')
 
 lineWithPrefix :: Text -> Parser Text
-lineWithPrefix p = string p <> takeWhileP (Just "character") (/= '\n')
+lineWithPrefix p = string p #<> takeWhileP (Just "character") (/= '\n')
 
 nested :: Text -> Text -> Parser Text -> Parser Text
 nested start end content =
-        start' <> (mconcat <$> manyTill content (lookAhead end')) <> end'
+        start' #<> (mconcat <$> manyTill content (lookAhead end')) #<> end'
     where
         start' = string start
         end' = string end
 
 kwsep :: [Char] -> [Text] -> Parser Text
-kwsep seps strs = (T.map dashes <$> (try $ mconcat $
-        intersperse (satisfyT (`elem` seps)) (string <$> strs)))
-        <?> T.unpack (mconcat $ intersperse "-" strs)
+kwsep seps strs = T.map dashes <$> parser <?> T.unpack (mconcat $ intersperse "-" strs)
     where
+        parser = try $ ((fmap mconcat . sequence) $
+            intersperse (satisfyT (`elem` seps)) (string <$> strs)) <* notFollowedBy letter_
         dashes '_' = '-'
         dashes c = c
-
-percentPercent :: Parser Token
-percentPercent = token_ $ string "%%" >> do
-    ss <- get
-    put ss { section = succ (section ss) }
-    pure PERCENT_PERCENT
-
-predicate' :: Parser Text
-predicate' = try $ string "%?" <> spaces <> bracedCode'
-
-predicate :: Parser Token
-predicate =  token_ predicate' <&> BRACED_PREDICATE
-
-prologue' :: Parser Text
-prologue' = try $ charT '%' <> bracedCode'
-
-prologue :: Parser Token
-prologue = token_ prologue' <&> PROLOGUE
 
 kwsep_ :: [Text] -> Parser Text
 kwsep_ = kwsep "-_"
 
 kw_ :: Text -> Parser Text
-kw_ d = string d <* notFollowedBy letter_
+kw_ d = try (string d <* notFollowedBy letter_)
+
+percentPercent_ :: Parser Token
+percentPercent_ = makeToken $ string "%%" >> do
+    ss <- get
+    put ss { section = succ (section ss) }
+    pure PERCENT_PERCENT
+
+predicate' :: Parser Text
+predicate' = try $ string "%?" #<> spaces #<> bracedCode'
+
+predicate_ :: Parser Token
+predicate_ =  makeToken predicate' <&> BRACED_PREDICATE
+
+prologue' :: Parser Text
+prologue' = try $ charT '%' #<> bracedCode'
+
+prologue_ :: Parser Token
+prologue_ = makeToken prologue' <&> PROLOGUE
 
 pCode' :: Parser Text
 pCode' = kw_ "%code"
 
-pCode :: Parser Token
-pCode = token_ pCode' $> PERCENT_CODE
+pCode_ :: Parser Token
+pCode_ = makeToken pCode' $> PERCENT_CODE
 
 pDebug' :: Parser Text
 pDebug' = kw_ "%debug"
@@ -105,116 +106,116 @@ pDebug' = kw_ "%debug"
 pLocations' :: Parser Text
 pLocations' = kw_ "%locations"
 
-pFlag :: Parser Token
-pFlag = token_ (pDebug' <|> pLocations') <&> PERCENT_FLAG
+pFlag_ :: Parser Token
+pFlag_ = makeToken (pDebug' <|> pLocations') <&> PERCENT_FLAG
 
 pDefaultPrec' :: Parser Text
 pDefaultPrec' = kwsep_ ["%default", "prec"]
 
-pDefaultPrec :: Parser Token
-pDefaultPrec = token_ pDefaultPrec' $> PERCENT_DEFAULT_PREC
+pDefaultPrec_ :: Parser Token
+pDefaultPrec_ = makeToken pDefaultPrec' $> PERCENT_DEFAULT_PREC
 
 pDefines' :: Parser Text
 pDefines' = kw_ "%defines"
 
-pDefines :: Parser Token
-pDefines = token_ pDefines' $> PERCENT_DEFINES
+pDefines_ :: Parser Token
+pDefines_ = makeToken pDefines' $> PERCENT_DEFINES
 
 pDefine' :: Parser Text
 pDefine' = kw_ "%define"
 
-pDefine :: Parser Token
-pDefine = token_ pDefine' $> PERCENT_DEFINE
+pDefine_ :: Parser Token
+pDefine_ = makeToken pDefine' $> PERCENT_DEFINE
 
 pDestructor' :: Parser Text
 pDestructor' = kw_ "%destructor"
 
-pDestructor :: Parser Token
-pDestructor = token_ pDestructor' $> PERCENT_DESTRUCTOR
+pDestructor_ :: Parser Token
+pDestructor_ = makeToken pDestructor' $> PERCENT_DESTRUCTOR
 
 pDprec' :: Parser Text
 pDprec' = kw_ "%dprec"
 
-pDprec :: Parser Token
-pDprec = token_ pDprec' $> PERCENT_DPREC
+pDprec_ :: Parser Token
+pDprec_ = makeToken pDprec' $> PERCENT_DPREC
 
 pEmpty' :: Parser Text
 pEmpty' = kw_ "%empty"
 
-pEmpty :: Parser Token
-pEmpty = token_ pEmpty' $> PERCENT_EMPTY
+pEmpty_ :: Parser Token
+pEmpty_ = makeToken pEmpty' $> PERCENT_EMPTY
 
 pErrorVerbose' :: Parser Text
 pErrorVerbose' = kwsep_ ["%error", "verbose"]
 
-pErrorVerbose :: Parser Token
-pErrorVerbose = token_ pErrorVerbose' $> PERCENT_ERROR_VERBOSE
+pErrorVerbose_ :: Parser Token
+pErrorVerbose_ = makeToken pErrorVerbose' $> PERCENT_ERROR_VERBOSE
 
 pExpect' :: Parser Text
 pExpect' = kw_ "%expect"
 
-pExpect :: Parser Token
-pExpect = token_ pExpect' $> PERCENT_EXPECT
+pExpect_ :: Parser Token
+pExpect_ = makeToken pExpect' $> PERCENT_EXPECT
 
 pExpectRr' :: Parser Text
 pExpectRr' = kwsep_ ["%expect", "rr"]
 
-pExpectRr :: Parser Token
-pExpectRr = token_ pExpectRr' $> PERCENT_EXPECT_RR
+pExpectRr_ :: Parser Token
+pExpectRr_ = makeToken pExpectRr' $> PERCENT_EXPECT_RR
 
 pFilePrefix' :: Parser Text
-pFilePrefix' = try $ string "%file-prefix" <> eqopt_
+pFilePrefix' = try $ string "%file-prefix" #<> eqopt_
 
-pFilePrefix :: Parser Token
-pFilePrefix = token_ pFilePrefix' $> PERCENT_FILE_PREFIX
+pFilePrefix_ :: Parser Token
+pFilePrefix_ = makeToken pFilePrefix' $> PERCENT_FILE_PREFIX
 
 pInitialAction' :: Parser Text
 pInitialAction' = kw_ "%initial-action"
 
-pInitialAction :: Parser Token
-pInitialAction = token_ pInitialAction' $> PERCENT_INITIAL_ACTION
+pInitialAction_ :: Parser Token
+pInitialAction_ = makeToken pInitialAction' $> PERCENT_INITIAL_ACTION
 
 pGlrParser' :: Parser Text
 pGlrParser' = kw_ "%glr-parser"
 
-pGlrParser :: Parser Token
-pGlrParser = token_ pGlrParser' $> PERCENT_GLR_PARSER
+pGlrParser_ :: Parser Token
+pGlrParser_ = makeToken pGlrParser' $> PERCENT_GLR_PARSER
 
 pLanguage' :: Parser Text
 pLanguage' = kw_ "%language"
 
-pLanguage :: Parser Token
-pLanguage = token_ pLanguage' $> PERCENT_LANGUAGE
+pLanguage_ :: Parser Token
+pLanguage_ = makeToken pLanguage' $> PERCENT_LANGUAGE
 
 pLeft' :: Parser Text
 pLeft' = kw_ "%left"
 
-pLeft :: Parser Token
-pLeft = token_ pLeft' $> PERCENT_LEFT
+pLeft_ :: Parser Token
+pLeft_ = makeToken pLeft' $> PERCENT_LEFT
 
 pMerge' :: Parser Text
 pMerge' = kw_ "%merge"
 
-pMerge :: Parser Token
-pMerge = token_ pMerge' $> PERCENT_MERGE
+pMerge_ :: Parser Token
+pMerge_ = makeToken pMerge' $> PERCENT_MERGE
 
 pNamePrefix' :: Parser Text
-pNamePrefix' = try (kwsep_ ["%name", "prefix"] <> eqopt_)
+pNamePrefix' = try (kwsep_ ["%name", "prefix"] #<> eqopt_)
 
-pNamePrefix :: Parser Token
-pNamePrefix = pNamePrefix' $> PERCENT_NAME_PREFIX
+pNamePrefix_ :: Parser Token
+pNamePrefix_ = pNamePrefix' $> PERCENT_NAME_PREFIX
 
 pNoDefaultPrec' :: Parser Text
 pNoDefaultPrec' = kwsep_ ["%no", "default", "prec"]
 
-pNoDefaultPrec :: Parser Token
-pNoDefaultPrec = token_ pNoDefaultPrec $> PERCENT_NO_DEFAULT_PREC
+pNoDefaultPrec_ :: Parser Token
+pNoDefaultPrec_ = makeToken pNoDefaultPrec' $> PERCENT_NO_DEFAULT_PREC
 
 pNoLines' :: Parser Text
 pNoLines' = kwsep_ ["%no", "lines"]
 
-pNoLines :: Parser Token
-pNoLines = token_ pNoLines' $> PERCENT_NO_LINES
+pNoLines_ :: Parser Token
+pNoLines_ = makeToken pNoLines' $> PERCENT_NO_LINES
 
 pBinary' :: Parser Text
 pBinary' = kw_ "%binary"
@@ -222,32 +223,32 @@ pBinary' = kw_ "%binary"
 pNonAssoc' :: Parser Text
 pNonAssoc' = kw_ "%nonassoc"
 
-pNonAssoc :: Parser Token
-pNonAssoc = token_ (pBinary' <|> pNonAssoc') $> PERCENT_NONASSOC
+pNonAssoc_ :: Parser Token
+pNonAssoc_ = makeToken (pBinary' <|> pNonAssoc') $> PERCENT_NONASSOC
 
 pNonDeterministicParser' :: Parser Text
 pNonDeterministicParser' = kw_ "%nondeterministic-parser"
 
-pNonDeterministicParser :: Parser Token
-pNonDeterministicParser = token_ pNonDeterministicParser' $> PERCENT_NONDETERMINISTIC_PARSER
+pNonDeterministicParser_ :: Parser Token
+pNonDeterministicParser_ = makeToken pNonDeterministicParser' $> PERCENT_NONDETERMINISTIC_PARSER
 
 pNterm' :: Parser Text
 pNterm' = kw_ "%nterm"
 
-pNterm :: Parser Token
-pNterm = token_ pNterm' $> PERCENT_NTERM
+pNterm_ :: Parser Token
+pNterm_ = makeToken pNterm' $> PERCENT_NTERM
 
 pOutput' :: Parser Text
-pOutput' = try $ string "%output" <> eqopt_
+pOutput' = try $ string "%output" #<> eqopt_
 
-pOutput :: Parser Token
-pOutput = token_ pOutput' $> PERCENT_OUTPUT
+pOutput_ :: Parser Token
+pOutput_ = makeToken pOutput' $> PERCENT_OUTPUT
 
 pFixedOutputFiles' :: Parser Text
 pFixedOutputFiles' = kwsep_ ["%fixed", "output", "files"]
 
-pFixedOutputFiles :: Parser Token
-pFixedOutputFiles = token_ pFixedOutputFiles' $> PERCENT_FIXED_OUTPUT_FILES
+pFixedOutputFiles_ :: Parser Token
+pFixedOutputFiles_ = makeToken pFixedOutputFiles' $> PERCENT_FIXED_OUTPUT_FILES
 
 pParam' :: Parser Text
 pParam' = kw_ "%param"
@@ -258,56 +259,56 @@ pLexParam' = kw_ "%lex-param"
 pParseParam' :: Parser Text
 pParseParam' = kw_ "%parse-param"
 
-pParam :: Parser Token
-pParam = token_ (pParam' <|> pParseParam' <|> pLexParam') <&> PERCENT_PARAM
+pParam_ :: Parser Token
+pParam_ = makeToken (pParam' <|> pParseParam' <|> pLexParam') <&> PERCENT_PARAM
 
 pPrecedence' :: Parser Text
 pPrecedence' = kw_ "%precedence"
 
-pPrecedence :: Parser Token
-pPrecedence = token_ pPrecedence' $> PERCENT_PRECEDENCE
+pPrecedence_ :: Parser Token
+pPrecedence_ = makeToken pPrecedence' $> PERCENT_PRECEDENCE
 
 pPrec' :: Parser Text
 pPrec' = kw_ "%prec"
 
-pPrec :: Parser Token
-pPrec = token_ pPrec' $> PERCENT_PREC
+pPrec_ :: Parser Token
+pPrec_ = makeToken pPrec' $> PERCENT_PREC
 
 pPrinter' :: Parser Text
 pPrinter' = kw_ "%printer"
 
-pPrinter :: Parser Token
-pPrinter = token_ pPrinter' $> PERCENT_PRINTER
+pPrinter_ :: Parser Token
+pPrinter_ = makeToken pPrinter' $> PERCENT_PRINTER
 
 pPureParser' :: Parser Text
 pPureParser' = kwsep_ ["%pure", "parser"]
 
-pPureParser :: Parser Token
-pPureParser = token_ pPureParser' $> PERCENT_PURE_PARSER
+pPureParser_ :: Parser Token
+pPureParser_ = makeToken pPureParser' $> PERCENT_PURE_PARSER
 
 pRequire' :: Parser Text
 pRequire' = kw_ "%require"
 
-pRequire :: Parser Token
-pRequire = token_ pRequire' $> PERCENT_REQUIRE
+pRequire_ :: Parser Token
+pRequire_ = makeToken pRequire' $> PERCENT_REQUIRE
 
 pRight' :: Parser Text
 pRight' = kw_ "%right"
 
-pRight :: Parser Token
-pRight = token_ pRight' $> PERCENT_RIGHT
+pRight_ :: Parser Token
+pRight_ = makeToken pRight' $> PERCENT_RIGHT
 
 pSkeleton' :: Parser Text
 pSkeleton' = kw_ "%skeleton"
 
-pSkeleton :: Parser Token
-pSkeleton = token_ pSkeleton' $> PERCENT_SKELETON
+pSkeleton_ :: Parser Token
+pSkeleton_ = makeToken pSkeleton' $> PERCENT_SKELETON
 
 pStart' :: Parser Text
 pStart' = kw_ "%start"
 
-pStart :: Parser Token
-pStart = token_ pStart' $> PERCENT_START
+pStart_ :: Parser Token
+pStart_ = makeToken pStart' $> PERCENT_START
 
 pTerm' :: Parser Text
 pTerm' = kw_ "%term"
@@ -315,193 +316,197 @@ pTerm' = kw_ "%term"
 pTokenTable' :: Parser Text
 pTokenTable' = kwsep_ ["%token", "table"]
 
-pTokenTable :: Parser Token
-pTokenTable = token_ pTokenTable' $> PERCENT_TOKEN_TABLE
+pTokenTable_ :: Parser Token
+pTokenTable_ = makeToken pTokenTable' $> PERCENT_TOKEN_TABLE
 
 pToken' :: Parser Text
 pToken' = kw_ "%token"
 
-pToken :: Parser Token
-pToken = token_ (pTerm' <|> pToken') $> PERCENT_TOKEN
+pToken_ :: Parser Token
+pToken_ = makeToken (pTerm' <|> pToken') $> PERCENT_TOKEN
 
 pType' :: Parser Text
 pType' = kw_ "%type"
 
-pType :: Parser Token
-pType = token_ pType' $> PERCENT_TYPE
+pType_ :: Parser Token
+pType_ = makeToken pType' $> PERCENT_TYPE
 
 pUnion' :: Parser Text
 pUnion' = kw_ "%union"
 
-pUnion :: Parser Token
-pUnion = token_ pUnion' $> PERCENT_UNION
+pUnion_ :: Parser Token
+pUnion_ = makeToken pUnion' $> PERCENT_UNION
 
 pVerbose' :: Parser Text
 pVerbose' = kw_ "%verbose"
 
-pVerbose :: Parser Token
-pVerbose = token_ pVerbose' $> PERCENT_VERBOSE
+pVerbose_ :: Parser Token
+pVerbose_ = makeToken pVerbose' $> PERCENT_VERBOSE
 
 pYacc' :: Parser Text
 pYacc' = kw_ "%yacc"
 
-pYacc :: Parser Token
-pYacc = token_ pYacc' $> PERCENT_YACC
+pYacc_ :: Parser Token
+pYacc_ = makeToken pYacc' $> PERCENT_YACC
 
-colon :: Parser Token
-colon = token_ (charT ':') $> COLON
+colon_ :: Parser Token
+colon_ = makeToken (charT ':') $> COLON
 
-equal :: Parser Token
-equal = token_ (charT '=') $> EQUAL
+equal_ :: Parser Token
+equal_ = makeToken (charT '=') $> EQUAL
 
-pipe :: Parser Token
-pipe = token_ (charT '|') $> PIPE
+pipe_ :: Parser Token
+pipe_ = makeToken (charT '|') $> PIPE
 
-semicolon :: Parser Token
-semicolon = token_ (charT ';') $> SEMICOLON
+semicolon_ :: Parser Token
+semicolon_ = makeToken (charT ';') $> SEMICOLON
 
 identifier' :: Parser Text
-identifier' = id_ <* notFollowedBy letter_
+identifier' = try $ id_ <* notFollowedBy (letter_ <|> charT ':')
 
-identifier :: Parser Token
-identifier = token_ identifier' <&> ID
+identifier_ :: Parser Token
+identifier_ = makeToken identifier' <&> ID
 
 idColon' :: Parser Text
-idColon' = id_ <* test ':'
+idColon' = try $ id_ <* test ':'
 
-idColon :: Parser Token
-idColon = token_ idColon' <&> ID_COLON
+idColon_ :: Parser Token
+idColon_ = makeToken idColon' <&> ID_COLON
 
 bracketedId' :: Parser Text
-bracketedId' = try $ option "" id_ <> charT '[' <> id_ <> charT ']'
+bracketedId' = try $ option "" id_ #<> charT '[' #<> id_ #<> charT ']'
 
-bracketedId :: Parser Token
-bracketedId = bracketedId' <&> BRACKETED_ID
+bracketedId_ :: Parser Token
+bracketedId_ = makeToken bracketedId' <&> BRACKETED_ID
 
 hexadecimal' :: Parser Int
 hexadecimal' = try $ M.char '0' >> satisfy (`elem` ['x', 'X']) >>
     L.hexadecimal <* notFollowedBy letter_
 
 decimal' :: Parser Int
-decimal' = L.decimal <* notFollowedBy letter_
+decimal' = try $ L.decimal <* notFollowedBy letter_
 
 integer_ :: Parser Token
-integer_ = token_ (hexadecimal' <|> decimal') <&> INT
+integer_ = makeToken (hexadecimal' <|> decimal') <&> INT
 
 character' :: Parser Char
 character' = try $ M.char '\'' >> L.charLiteral <* M.char '\''
 
 character_ :: Parser Token
-character_ = character' <&> CHAR
+character_ = makeToken character' <&> CHAR
 
 string' :: Parser Text
 string' = try $ M.char '"' >> (T.pack <$> manyTill L.charLiteral (M.char '"'))
 
 string_ :: Parser Token
-string_ = string' <&> STRING
+string_ = makeToken string' <&> STRING
 
 bracedCode' :: Parser Text
-bracedCode' = try $ test '{' >> (
-            nested "{" "}" bracedCode'
-        <|> (string' >>= wrap '"')
-        <|> (T.singleton <$> character' >>= wrap '\'')
-        <|> nested "/*" "*/" anySingleT
-        <|> lineWithPrefix "//"
-        <|> anySingleT)
+bracedCode' = try $ nested "{" "}" p <* notFollowedBy (M.char '}')
     where
         wrap c str = let c' = T.singleton c
                     in pure $ c' <> str <> c'
+        p = nested "{" "}" p
+            <|> (string' >>= wrap '"')
+            <|> (T.singleton <$> character' >>= wrap '\'')
+            <|> nested "/*" "*/" anySingleT
+            <|> lineWithPrefix "//"
+            <|> anySingleT
 
-bracedCode :: Parser Token
-bracedCode = token_ bracedCode' <&> BRACED_CODE
+bracedCode_ :: Parser Token
+bracedCode_ = makeToken bracedCode' <&> BRACED_CODE
 
 tagAny' :: Parser Text
 tagAny' = string "<*>"
 
-tagAny :: Parser Token
-tagAny = token_ tagAny' $> TAG_ANY
+tagAny_ :: Parser Token
+tagAny_ = makeToken tagAny' $> TAG_ANY
 
 tagNone' :: Parser Text
 tagNone' = string "<>"
 
-tagNone :: Parser Token
-tagNone = token_ tagNone' $> TAG_NONE
+tagNone_ :: Parser Token
+tagNone_ = makeToken tagNone' $> TAG_NONE
 
 tag' :: Parser Text
-tag' = test '<' >> (nested "<" ">" (try tag' <|> try (string "->") <|> satisfyT (`notElem` ['<', '>'])))
+tag' = try $ nested "<" ">" p <* notFollowedBy (M.char '>')
+    where
+        p = nested "<" ">" p
+            <|> string "->"
+            <|> satisfyT (`notElem` ['<', '>'])
 
-tag :: Parser Token
-tag = token_ tag' <&> TAG
+tag_ :: Parser Token
+tag_ = makeToken tag' <&> TAG
 
 epilogue' :: Parser Text
 epilogue' = takeRest <* eof
 
-epilogue :: Parser Token
-epilogue = token_ epilogue' <&> EPILOGUE
+epilogue_ :: Parser Token
+epilogue_ = makeToken epilogue' <&> EPILOGUE
 
 token :: Parser Token
 token = do
     sect <- gets section
     case sect of
-        Epilogue -> epilogue
+        Epilogue -> epilogue_
         _ -> choice [
-              percentPercent
-            , prologue
-            , predicate
-            , pCode
-            , pDefaultPrec
-            , pDefines
-            , pDefine
-            , pDestructor
-            , pDprec
-            , pEmpty
-            , pErrorVerbose
-            , pExpect
-            , pExpectRr
-            , pFilePrefix
-            , pInitialAction
-            , pGlrParser
-            , pLanguage
-            , pLeft
-            , pFlag
-            , pMerge
-            , pNamePrefix
-            , pNoDefaultPrec
-            , pNoLines
-            , pNonAssoc
-            , pNonDeterministicParser
-            , pNterm
-            , pOutput
-            , pFixedOutputFiles
-            , pParam
-            , pPrecedence
-            , pPrec
-            , pPrinter
-            , pPureParser
-            , pRequire
-            , pRight
-            , pSkeleton
-            , pStart
-            , pTokenTable
-            , pToken
-            , pType
-            , pUnion
-            , pVerbose
-            , pYacc
-            , colon
-            , equal
-            , pipe
-            , semicolon
-            , identifier
-            , idColon
-            , bracketedId
+              percentPercent_
+            , prologue_
+            , predicate_
+            , pCode_
+            , pDefaultPrec_
+            , pDefines_
+            , pDefine_
+            , pDestructor_
+            , pDprec_
+            , pEmpty_
+            , pErrorVerbose_
+            , pExpectRr_
+            , pExpect_
+            , pFilePrefix_
+            , pInitialAction_
+            , pGlrParser_
+            , pLanguage_
+            , pLeft_
+            , pFlag_
+            , pMerge_
+            , pNamePrefix_
+            , pNoDefaultPrec_
+            , pNoLines_
+            , pNonAssoc_
+            , pNonDeterministicParser_
+            , pNterm_
+            , pOutput_
+            , pFixedOutputFiles_
+            , pParam_
+            , pPrecedence_
+            , pPrec_
+            , pPrinter_
+            , pPureParser_
+            , pRequire_
+            , pRight_
+            , pSkeleton_
+            , pStart_
+            , pTokenTable_
+            , pToken_
+            , pType_
+            , pUnion_
+            , pVerbose_
+            , pYacc_
+            , colon_
+            , equal_
+            , pipe_
+            , semicolon_
+            , identifier_
+            , idColon_
+            , bracketedId_
             , integer_
             , character_
             , string_
-            , bracedCode
-            , tagAny
-            , tagNone
-            , tag
+            , bracedCode_
+            , tagAny_
+            , tagNone_
+            , tag_
             ]
 
 whitespace :: Parser ()
@@ -509,13 +514,13 @@ whitespace = L.space M.space1
     (L.skipLineComment "//")
     (L.skipBlockComment "/*" "*/")
 
-token_ :: Parser a -> Parser a
-token_ = L.lexeme whitespace
+makeToken :: Parser a -> Parser a
+makeToken = L.lexeme whitespace
 
 tokens :: Parser [Token]
 tokens = whitespace >> manyTill token eof
 
-scan :: Text -> Maybe [Token]
-scan = parseMaybe (runParser initialState tokens)
+scan :: Text -> Either (ParseErrorBundle Text Void) [Token]
+scan = evalParser initialState tokens ""
     where initialState = ParseState Prologue
 

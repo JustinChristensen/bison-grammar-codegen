@@ -30,11 +30,15 @@ gram.y:
 run-gram:
 	$(RUN_GRAM)
 
-.PHONY: test
-test: gram.y
+.PHONY: test-gram
+test-gram: gram.y
 	@grammar=$$($(RUN_GRAM)) && \
 	printf "%s" "$$grammar" | cabal v2-run || \
 	printf "bison not found at $(BISON) \n"
+
+.PHONY: test
+test:
+	$(CABAL) v2-run test:tests
 
 .PHONY: clean
 clean:

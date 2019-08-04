@@ -1,24 +1,18 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Bison.Grammar.Types where
 
 import Data.Text (Text)
 import Data.Void (Void)
-import Text.Megaparsec hiding (Token, runParser, runParser')
-import Control.Applicative (Alternative, liftA2)
-import Control.Monad (MonadPlus)
-import Control.Monad.State (StateT, evalStateT)
-import Control.Monad.State.Class (MonadState)
+import Text.Megaparsec hiding (Token, runParser)
+import Control.Applicative (liftA2)
+import Control.Monad.State
 
-newtype Parser a = Parser {
-        runParser' :: StateT ParseState (Parsec Void Text) a
-    } deriving (Functor, Applicative, Alternative, Monad, MonadPlus,
-                MonadState ParseState, MonadParsec Void Text)
+type Parser = StateT ParseState (Parsec Void Text)
 
 data ParseState = ParseState {
-        section :: ScanSection
+        section :: ParseSection
     } deriving (Show, Read, Eq)
 
-data ScanSection
+data ParseSection
     = Prologue
     | Grammar
     | Epilogue
@@ -85,12 +79,17 @@ data Token
     | PERCENT_EMPTY
     deriving (Show, Read, Eq, Ord)
 
-instance Semigroup a => Semigroup (Parser a) where
-    (<>) = liftA2 (<>)
+-- because StateT doesn't have a Semigroup instance and I don't want to wrap it
+-- in a newtype just to add one, and AFAIK this doesn't already exist in base
+infixr 6 #<>
+(#<>) :: (Applicative f, Semigroup a) => f a -> f a -> f a
+(#<>) = liftA2 (<>)
 
-instance Monoid a => Monoid (Parser a) where
-    mempty = pure mempty
-    mappend = (<>)
+runParser :: ParseState -> Parser a -> (String -> Text -> Either (ParseErrorBundle Text Void) (a, ParseState))
+runParser s p = parse (runStateT p s)
 
-runParser :: ParseState -> Parser a -> Parsec Void Text a
-runParser state = flip evalStateT state . runParser'
+evalParser :: ParseState -> Parser a -> (String -> Text -> Either (ParseErrorBundle Text Void) a)
+evalParser s p = parse (evalStateT p s)
+
+execParser :: ParseState -> Parser a -> (String -> Text -> Either (ParseErrorBundle Text Void) ParseState)
+execParser s p = parse (execStateT p s)

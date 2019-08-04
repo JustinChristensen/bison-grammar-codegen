@@ -46,10 +46,13 @@ test-suite tests
         hspec ==2.*
       , hspec-megaparsec
       , megaparsec
+      , mtl
+      , transformers
       , text
       , bison-grammar-codegen
     other-modules:
         Helper
+      , Fixtures
       , Bison.Grammar.LexerSpec
       , Paths_bison_grammar_codegen
     build-tool-depends: hspec-discover:hspec-discover == 2.*
