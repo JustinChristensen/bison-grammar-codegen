@@ -448,7 +448,7 @@ token :: Parser Token
 token = do
     sect <- gets section
     case sect of
-        Epilogue -> epilogue_
+        SectionEpilogue -> epilogue_
         _ -> choice [
               percentPercent_
             , prologue_
@@ -522,5 +522,5 @@ tokens = whitespace >> manyTill token eof
 
 scan :: Text -> Either (ParseErrorBundle Text Void) [Token]
 scan = evalParser initialState tokens ""
-    where initialState = ParseState Prologue
+    where initialState = ParseState SectionPrologue
 
