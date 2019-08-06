@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveFunctor #-}
 module Bison.Grammar.Types where
 
 import Data.Text (Text)
@@ -81,171 +80,139 @@ data Token
     | PERCENT_EMPTY
     deriving (Show, Read, Eq, Ord, Generic)
 
-data GrammarFileF a
-    = GrammarFile [PrologueDeclF a] a (GrammarF a) (Maybe a)
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+newtype StringT = StringT Text
+newtype BracedCodeT = BracedCodeT Text
+newtype BracedPredicateT = BracedPredicateT Text
+newtype BracketedIdT = BracketedIdT Text
+newtype CharT = CharT Char
+newtype EpilogueT = EpilogueT Text
+newtype IdT = IdT Text
+newtype IdColonT = IdColonT Text
+newtype IntT = IntT Int
+newtype PrologueT = PrologueT Text
+newtype PercentFlagT = PercentFlagT Text
+newtype PercentParamT = PercentParamT Text
+newtype TagT = TagT Text
 
-data PrologueDeclF a
-    = GrammarDeclPD (GrammarDeclF a)
-    | ProloguePD a
-    | FlagPD a
-    | DefinePD a a (Maybe (ValueF a))
-    | DefinesPD a
-    | ErrorVerbosePD a
-    | ExpectPD a a
-    | ExpectRrPD a a
-    | FilePrefixPD a a
-    | GlrParserPD a
-    | InitialActionPD a a
-    | LanguagePD a a
-    | NamePrefixPD a a
-    | NoLinesPD a
-    | NonDeterministicParserPD a
-    | OutputPD a a
-    | ParamPD a [a]
-    | PureParserPD a
-    | RequirePD a a
-    | SkeletonPD a a
-    | TokenTablePD a
-    | VerbosePD a
-    | YaccPD a
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data GrammarFile
+    = GrammarFile [PrologueDecl] [GrammarRuleOrDecl] (Maybe Epilogue)
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data GrammarDeclF a
-    = SymbolDeclGD (SymbolDeclF a)
-    | StartGD a (SymbolF a)
-    | CodePropsTypeGD (CodePropsF a) a (GenericSymlistF a)
-    | DefaultPrecGD a
-    | NoDefaultPrecGD a
-    | CodeGD a a
-    | CodeIdGD a a a
-    | UnionGD a a a
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data PrologueDecl
+    = GrammarDeclPD GrammarDecl
+    | ProloguePD PrologueT
+    | FlagPD PercentFlagT
+    | DefinePD IdT (Maybe Value)
+    | DefinesPD (Maybe StringT)
+    | ErrorVerbosePD
+    | ExpectPD IntegerT
+    | ExpectRrPD IntegerT
+    | FilePrefixPD StringT
+    | GlrParserPD
+    | InitialActionPD BracedCodeT
+    | LanguagePD StringT
+    | NamePrefixPD StringT
+    | NoLinesPD
+    | NonDeterministicParserPD
+    | OutputPD StringT
+    | ParamPD [BracedCodeT]
+    | PureParserPD
+    | RequirePD StringT
+    | SkeletonPD StringT
+    | TokenTablePD
+    | VerbosePD
+    | YaccPD
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data CodePropsTypeF a
-    = DestructorCP a
-    | PrinterCP a
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data GrammarDecl
+    = SymbolDeclGD SymbolDecl
+    | StartGD Symbol
+    | DestructorGD BracedCodeT [GenericSymlistItem]
+    | PrinterGD BracedCodeT [GenericSymlistItem]
+    | DefaultPrecGD
+    | NoDefaultPrecGD
+    | CodeGD (Maybe IdT) BracedCodeT
+    | UnionGD (Maybe IdT) BracedCodeT
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data SymbolDeclF a
-    = NTermSD a [NTermDeclsF a]
-    | TokenSD a [TokenDeclsF a]
-    | TypeSD a [SymbolDeclsF a]
-    | PrecedenceDeclSD (PrecedenceDeclF a) [TokenDeclsForPrecF a]
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data SymbolDecl
+    = NTermSD (Maybe TagT) [TokenDecl] [TaggedDecls TokenDecl]
+    | TokenSD (Maybe TagT) [TokenDecl] [TaggedDecls TokenDecl]
+    | TypeSD (Maybe TagT) [Symbol] [TaggedDecls Symbol]
+    | PrecedenceDeclSD PrecedenceDecl (Maybe TagT) [PrecTokenDecl] [TaggedDecls PrecTokenDecl]
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data PrecedenceDeclF a
-    = LeftPD a
-    | RightPD a
-    | NonAssocPD a
-    | PrecedencePD a
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data TaggedDecls d = TaggedDecls TagT [d]
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data GenericSymlistF a
-    = SymbolGS (SymbolF a)
-    | TagGS (TagF a)
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data TokenDecl = TokenDecl Id (Maybe IntT) (Maybe String_)
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data TagF a
-    = Tag a
-    | TagAny a
-    | TagNone a
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data PrecTokenDecl
+    = IdP Id (Maybe IntT)
+    | StrP StringT
+    deriving (Show, Read, Eq, Ord, Generic)
 
-type NTermDeclsF = TokenDeclsF
+data PrecedenceDecl
+    = LeftPD
+    | RightPD
+    | NonAssocPD
+    | PrecedencePD
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data TokenDeclsF a
-    = TokenDeclTD (Maybe a) [TokenDeclF a]
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data GenericSymlistItem
+    = SymbolGS Symbol
+    | TagGS Tag
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data TokenDeclF a
-    = TokenDecl (IdF a) (Maybe a) (Maybe a)
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data Tag
+    = Tag TagT
+    | TagAny
+    | TagNone
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data TokenDeclsForPrecF a
-    = TokenDeclsForPrec (Maybe a) [TokenDeclForPrecF a]
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data GrammarRuleOrDecl
+    = RuleGD Rule
+    | GrammarDeclGD GrammarDecl
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data TokenDeclForPrecF a
-    = IdFP (IdF a) (Maybe a)
-    | StrFP a
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data Rule = Rule IdColonT (Maybe BracketedIdT) [Rhses]
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data SymbolDeclsF a
-    = SymbolDecls (Maybe a) [SymbolDecl a]
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data Rhses = Rhses [Rhs]
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data SymbolDeclF a
-    = SymbolDecl [SymbolF a]
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data Rhs
+    = SymR Symbol (Maybe BracketedIdT)
+    | TagR (Maybe TagT) BracedCodeT (Maybe BracketedIdT)
+    | PredR BracedPredicateT
+    | EmptyR
+    | PrecR Symbol
+    | DprecR IntT
+    | MergeR TagT
+    | ExpectR IntT
+    | ExpectRrR IntT
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data GrammarF a
-    = RulesOrGrammarDecl [RulesOrGrammarDeclF a]
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data Value
+    = IdV IdT
+    | StrV StringT
+    | CodeV BracedCodeT
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data RulesOrGrammarDeclF a
-    = RulesRG [RulesF a]
-    | GrammarDeclRG (GrammarDeclF a) a
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data Id
+    = Id IdentifierT
+    | Char CharacterT
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data RulesF a
-    = IdColonR a (Maybe a) a [RhsF a]
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
+data Symbol
+    = IdS Id
+    | StrS StringT
+    deriving (Show, Read, Eq, Ord, Generic)
 
-data RhsF a
-    = SymR (SymbolF a) (Maybe a)
-    | TagR (Maybe (TagF a) a (Maybe a)
-    | PredR a
-    | EmptyR a
-    | PrecR a (SymbolF a)
-    | DprecR a a
-    | MergeR a
-    | ExpectR a
-    | ExpectRrR a
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
-
-data ValueF a
-    = IdV a
-    | StrV a
-    | CodeV a
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
-
-data IdF a
-    = Id a
-    | Char a
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
-
-data SymbolF a
-    = IdS (IdF a)
-    | StrS a
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
-
-data EpilogueF a
-    = Epilogue a a
-    deriving (Show, Read, Eq, Ord, Generic, Functor)
-
-type GrammarFile = GrammarFileF Token
-type PrologueDecl = PrologueDeclF Token
-type GrammarDecl = GrammarDeclF Token
-type CodePropsType = CodePropsTypeF Token
-type SymbolDecl = SymbolDeclF Token
-type PrecedenceDecl = PrecedenceDeclF Token
-type GenericSymlist = GenericSymlistF Token
-type Tag = TagF Token
-type TokenDecls = TokenDeclsF Token
-type TokenDecl = TokenDeclF Token
-type TokenDeclsForPrec = TokenDeclsForPrecF Token
-type TokenDeclForPrec = TokenDeclForPrecF Token
-type SymbolDecls = SymbolDeclsF Token
-type SymbolDecl = SymbolDeclF Token
-type Grammar = GrammarF Token
-type RulesOrGrammarDecl = RulesOrGrammarDeclF Token
-type Rules = RulesF Token
-type Rhs = RhsF Token
-type Value = ValueF Token
-type Id = IdF Token
-type Symbol = SymbolF Token
-type Epilogue = EpilogueF Token
+data Epilogue
+    = Epilogue EpilogueT
+    deriving (Show, Read, Eq, Ord, Generic)
 
 -- because StateT doesn't have a Semigroup instance and I don't want to wrap it
 -- in a newtype just to add one, and AFAIK this doesn't already exist in base

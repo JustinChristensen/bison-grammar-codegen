@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Bison.Grammar.Parser where
 
-import Prelude hiding (id)
 import Control.Applicative hiding (many, some)
 import Text.Megaparsec hiding (Token)
 import Bison.Grammar.Types
@@ -9,171 +8,125 @@ import Bison.Grammar.Lexer
 
 grammarFile :: Parser GrammarFile
 grammarFile = GrammarFile
-    <$> prologueDecls
-    <*> percentPercent_
-    <*> grammar
-    <*> optEpilogue
-
-prologueDecls :: Parser [PrologueDecl]
-prologueDecls = many prologueDeclaration
+    <$> many prologueDecl
+    <*> (percentPercent_ *> many grammarRuleOrDecl)
+    <*> optional epilogue
 
 prologueDecl :: Parser PrologueDecl
 prologueDecl =
-        PrologueDecl <$> grammarDeclaration
-    <|> PrologueDecl <$> prologue_
-    <|> PrologueDecl <$> pFlag_
-    <|> PrologueDecl <$> pDefine_ <*> identifier_ <*> value
-    <|> PrologueDecl <$> pDefines_
-    <|> PrologueDecl <$> pDefines_ <*> string_
-    <|> PrologueDecl <$> pErrorVerbose_
-    <|> PrologueDecl <$> pExpect_ <*> integer_
-    <|> PrologueDecl <$> pExpectRr_ <*> integer_
-    <|> PrologueDecl <$> pFilePrefix_ <*> string_
-    <|> PrologueDecl <$> pGlrParser_
-    <|> PrologueDecl <$> pInitialAction_
-    <|> PrologueDecl <$> pLanguage_ <*> string_
-    <|> PrologueDecl <$> pNamePrefix_ <*> string_
-    <|> PrologueDecl <$> pNoLines_
-    <|> PrologueDecl <$> pNonDeterministicParser_
-    <|> PrologueDecl <$> pOutput_ <*> string_
-    <|> PrologueDecl <$> pParam_ <*> many bracedCode_
-    <|> PrologueDecl <$> pPureParser_
-    <|> PrologueDecl <$> pRequire_ <*> string_
-    <|> PrologueDecl <$> pSkeleton_ <*> string_
-    <|> PrologueDecl <$> pTokenTable_
-    <|> PrologueDecl <$> pVerbose_
-    <|> PrologueDecl <$> pYacc_
+        GrammarDeclPD <$> grammarDecl
+    <|> ProloguePD <$> prologue_
+    <|> FlagPD <$> pFlag_
+    <|> DefinePD <$> (pDefine_ *> identifier_) <*> optional value
+    <|> DefinesPD <$> (pDefines_ *> optional string_)
+    <|> ErrorVerbosePD <* pErrorVerbose_
+    <|> ExpectPD <$> (pExpect_ *> integer_)
+    <|> ExpectRrPD <$> (pExpectRr_ *> integer_)
+    <|> FilePrefixPD <$> (pFilePrefix_ *> string_)
+    <|> GlrParserPD <$ pGlrParser_
+    <|> InitialActionPD <$> (pInitialAction_ *> bracedCode_)
+    <|> LanguagePD <$> (pLanguage_ *> string_)
+    <|> NamePrefixPD <$> (pNamePrefix_ *> string_)
+    <|> NoLinesPD <$ pNoLines_
+    <|> NonDeterministicParserPD <$ pNonDeterministicParser_
+    <|> OutputPD <$> (pOutput_ *> string_)
+    <|> ParamPD <$> (pParam_ *> many bracedCode_)
+    <|> PureParserPD <$ pPureParser_
+    <|> RequirePD <$> (pRequire_ *> string_)
+    <|> SkeletonPD <$> (pSkeleton_ *> string_)
+    <|> TokenTablePD <$ pTokenTable_
+    <|> VerbosePD <$ pVerbose_
+    <|> YaccPD <$ pYacc_
 
-grammarDeclaration :: Parser GrammarDecl
-grammarDeclaration =
-        GrammarDecl <$> symbolDeclaration
-    <|> GrammarDecl <$> pStart_ <*> symbol
-    <|> GrammarDecl <$> codePropsType <*> bracedCode_ <*> genericSymlist
-    <|> GrammarDecl <$> pDefaultPrec_
-    <|> GrammarDecl <$> pNoDefaultPrec_
-    <|> GrammarDecl <$> pCode_ <*> bracedCode_
-    <|> GrammarDecl <$> pCode_ <*> identifier_ <*> bracedCode_
-    <|> GrammarDecl <$> pUnion_ <*> optional identifier_ <*> bracedCode_
+grammarDecl :: Parser GrammarDecl
+grammarDecl =
+        SymbolDeclGD <$> symbolDecl
+    <|> StartGD <$> (pStart_ *> symbol)
+    <|> DestructorGD <$> (pDestructor_ *> bracedCode_) <*> some genericSymlistItem
+    <|> PrinterGD <$> (pPrinter_ *> bracedCode_) <*> some genericSymlistItem
+    <|> DefaultPrecGD <$> pDefaultPrec_
+    <|> NoDefaultPrecGD <$> pNoDefaultPrec_
+    <|> CodeGD <$> (pCode_ *> optional identifier_) <*> bracedCode_
+    <|> UnionGD <$> (pUnion_ *> optional identifier_) <*> bracedCode_
 
-codePropsType :: Parser CodePropsType
-codePropsType =
-        CodePropsType <$> pDestructor_
-    <|> CodePropsType <$> pPrinter_
+symbolDecl:: Parser SymbolDecl
+symbolDecl =
+        NTermSD <$> (pNterm_ *> optional tag_) <*> some tokenDecl <*> many (taggedDecls tokenDecl)
+    <|> TokenSD <$> (pToken_ *> optional tag_) <*> some tokenDecl <*> many (taggedDecls tokenDecl)
+    <|> TypeSD <$> (pType_ *> optional tag_) <*> some symbol <*> many (taggedDecls symbol)
+    <|> NTermSD <$> precedenceDecl <*> optional tag_ <*> some precTokenDecl <*> many (taggedDecls precTokenDecl)
 
-symbolDeclaration :: Parser SymbolDecl
-symbolDeclaration =
-        pNterm_ <*> nTermDecls
-    <|> pToken_ <*> tokenDecls
-    <|> pType_ <*> symbolDecls
-    <|> precedenceDeclarator <*> tokenDeclsForPrec
+taggedDecls :: Parser a -> Parser (TaggedDecls a)
+taggedDecls p = TaggedDecls <$> tag_ <*> some p
 
-precedenceDeclarator :: Parser (GrammarNode Token)
-precedenceDeclarator =
-        pLeft_
-    <|> pRight_
-    <|> pNonAssoc_
-    <|> pPrecedence_
+tokenDecl :: Parser TokenDecl
+tokenDecl = TokenDecl <$> id' <*> optional integer_ <*> optional string_
 
-optTag :: Parser (GrammarNode Token)
-optTag = option [] tag_
+precTokenDecl :: Parser PrecTokenDecl
+precTokenDecl =
+        IdP <$> id' <*> optional integer_
+    <|> StrP <$> string_
 
-genericSymlist :: Parser (GrammarNode Token)
-genericSymlist = many genericSymlistItem
+precedenceDecl :: Parser PrecedenceDecl
+precedenceDecl =
+        LeftPD <$ pLeft_
+    <|> RightPD <$ pRight_
+    <|> NonAssocPD <$ pNonAssoc_
+    <|> PrecedencePD <$ pPrecedence_
 
-genericSymlistItem :: Parser (GrammarNode Token)
+genericSymlistItem :: Parser GenericSymlistItem
 genericSymlistItem =
-        symbol
-    <|> tag
+        SymbolGS <$> symbol
+    <|> TagGS <$> tag
 
-tag :: Parser (GrammarNode Token)
+tag :: Parser Tag
 tag =
-        tag_
-    <|> tagAny_
-    <|> tagNone_
+        Tag <$> tag_
+    <|> TagAny <$ tagAny_
+    <|> TagNone <$ tagNone_
 
-nTermDecls :: Parser (GrammarNode Token)
-nTermDecls = tokenDecls
+grammarRuleOrDecl :: Parser GrammarRuleOrDecl
+grammarRuleOrDecl =
+        RuleGD <$> rule
+    <|> GrammarDeclGD <$> (grammarDecl <* semicolon_)
 
-tokenDecls :: Parser (GrammarNode Token)
-tokenDecls = some $ tokenDecl <|> tag_ <*> tokenDecl
+rule :: Parser Rule
+rule = Rule
+    <$> idColon_
+    <*> optional bracketedId_
+    <*> (colon_ *> rhses `sepBy1` pipe_ <* semicolon_)
 
-tokenDecl :: Parser (GrammarNode Token)
-tokenDecl = id <*> optInt <*> optStringAsId
+rhses :: Parser Rhses
+rhses = Rhses <$> some rhs
 
-optInt :: Parser (GrammarNode Token)
-optInt = option [] integer_
-
-tokenDeclsForPrec :: Parser (GrammarNode Token)
-tokenDeclsForPrec = many $
-        some tokenDeclForPrec
-    <|> tag_ <*> some tokenDeclForPrec
-
-tokenDeclForPrec :: Parser (GrammarNode Token)
-tokenDeclForPrec =
-        id <*> optInt
-    <|> stringAsId
-
-symbolDecls :: Parser (GrammarNode Token)
-symbolDecls = many $
-        some symbolDecl
-    <|> tag_ <*> some symbolDecl
-
-symbolDecl :: Parser (GrammarNode Token)
-symbolDecl = symbol
-
-grammar :: Parser (GrammarNode Token)
-grammar = some rulesOrGrammarDeclaration
-
-rulesOrGrammarDeclaration :: Parser (GrammarNode Token)
-rulesOrGrammarDeclaration =
-        rules
-    <|> grammarDeclaration <*> semicolon_
-
-rules :: Parser (GrammarNode Token)
-rules = idColon optNamedRef colon_ rhses
-
-rhses :: Parser (GrammarNode Token)
-rhses = some (rhs <*> pipe_ <|> rhs) <*> semicolon_
-
-rhs :: Parser (GrammarNode Token)
+rhs :: Parser Rhs
 rhs =
-        rhs <*> symbol <*> optNamedRef
-    <|> rhs <*> optTag <*> bracedCode_ <*> optNamedRef
-    <|> rhs <*> predicate_
-    <|> rhs <*> pEmpty_
-    <|> rhs <*> pPrec_ <*> symbol
-    <|> rhs <*> pDprec_ <*> integer_
-    <|> rhs <*> pMerge_ <*> tag_
-    <|> rhs <*> pExpect_ <*> integer_
-    <|> rhs <*> pExpectRr_ <*> integer_
+        SymR <$> symbol <*> optional bracketedId_
+    <|> TagR <$> optional tag_ <*> bracedCode_ <*> optional bracketedId_
+    <|> PredR <$> predicate_
+    <|> EmptyR <$ pEmpty_
+    <|> PrecR <$> (pPrec_ *> symbol)
+    <|> DprecR <$> (pDprec_ *> integer_)
+    <|> MergeR <$> (pMerge_ *> tag_)
+    <|> ExpectR <$> (pExpect_ *> integer_)
+    <|> ExpectRrR <$> (pExpectRr_ *> integer_)
 
-optNamedRef :: Parser (GrammarNode Token)
-optNamedRef = option [] bracketedId_
-
-value :: Parser (GrammarNode Token)
+value :: Parser Value
 value =
-        identifier_
-    <|> string_
-    <|> bracedCode_
+        IdV <$> identifier_
+    <|> StrV <$> string_
+    <|> CodeV <$> bracedCode_
 
-id :: Parser (GrammarNode Token)
-id =
-        identifier_
-    <|> character_
+id' :: Parser Id
+id' =
+        Id <$> identifier_
+    <|> Char <$> character_
 
-idColon :: Parser (GrammarNode Token)
-idColon = idColon_
-
-symbol :: Parser (GrammarNode Token)
+symbol :: Parser Symbol
 symbol =
-        id
-    <|> stringAsId
+        IdS <$> id'
+    <|> StrS <$> string_
 
-stringAsId :: Parser (GrammarNode Token)
-stringAsId = string_
+epilogue :: Parser Epilogue
+epilogue = Epilogue <$> (percentPercent_ *> epilogue_)
 
-optStringAsId :: Parser (GrammarNode Token)
-optStringAsId = option [] stringAsId
-
-optEpilogue :: Parser (Maybe Epilogue)
-optEpilogue = optional $ Epilogue <$> percentPercent_ <*> epilogue_)
