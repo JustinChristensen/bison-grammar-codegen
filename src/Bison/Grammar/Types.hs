@@ -4,17 +4,18 @@ module Bison.Grammar.Types where
 import GHC.Generics
 import Data.Text (Text)
 import Data.Void (Void)
-import Text.Megaparsec hiding (Token, runParser)
+import Text.Megaparsec hiding (Token)
 import Control.Applicative (liftA2)
 import Control.Monad.State
 
-type Parser = StateT ParseState (Parsec Void Text)
+type Parser = Parsec Void Text
+type Scanner = StateT ScanState Parser
 
-data ParseState = ParseState {
-        section :: ParseSection
+data ScanState = ScanState {
+        section :: ScanSection
     } deriving (Show, Read, Eq)
 
-data ParseSection
+data ScanSection
     = SectionPrologue
     | SectionGrammar
     | SectionEpilogue
@@ -215,17 +216,11 @@ data Epilogue
     = Epilogue EpilogueT
     deriving (Show, Read, Eq, Ord, Generic)
 
--- because StateT doesn't have a Semigroup instance and I don't want to wrap it
--- in a newtype just to add one, and AFAIK this doesn't already exist in base
-infixr 6 #<>
-(#<>) :: (Applicative f, Semigroup a) => f a -> f a -> f a
-(#<>) = liftA2 (<>)
+runScanner :: ScanState -> Scanner a -> (String -> Text -> Either (ParseErrorBundle Text Void) (a, ScanState))
+runScanner s p = parse (runStateT p s)
 
-runParser :: ParseState -> Parser a -> (String -> Text -> Either (ParseErrorBundle Text Void) (a, ParseState))
-runParser s p = parse (runStateT p s)
+evalScanner :: ScanState -> Scanner a -> (String -> Text -> Either (ParseErrorBundle Text Void) a)
+evalScanner s p = parse (evalStateT p s)
 
-evalParser :: ParseState -> Parser a -> (String -> Text -> Either (ParseErrorBundle Text Void) a)
-evalParser s p = parse (evalStateT p s)
-
-execParser :: ParseState -> Parser a -> (String -> Text -> Either (ParseErrorBundle Text Void) ParseState)
-execParser s p = parse (execStateT p s)
+execScanner :: ScanState -> Scanner a -> (String -> Text -> Either (ParseErrorBundle Text Void) ScanState)
+execScanner s p = parse (execStateT p s)
