@@ -5,7 +5,6 @@ import GHC.Generics
 import Data.Text (Text)
 import Data.Void (Void)
 import Text.Megaparsec hiding (Token)
-import Control.Applicative (liftA2)
 import Control.Monad.State
 
 type Parser = Parsec Void Text
