@@ -76,8 +76,11 @@ kwsep_ = kwsep "-_"
 kw_ :: Text -> Parser Text
 kw_ d = try $ string d <* notFollowedBy letter_
 
+percentPercent' :: Parser Text
+percentPercent' = string "%%"
+
 percentPercent_ :: Parser Token
-percentPercent_ = makeToken $ string "%%" >> do
+percentPercent_ = makeToken percentPercent' *> do
     ss <- get
     put ss { section = succ (section ss) }
     pure PERCENT_PERCENT
@@ -106,8 +109,11 @@ pDebug' = kw_ "%debug"
 pLocations' :: Parser Text
 pLocations' = kw_ "%locations"
 
+pFlag' :: Parser Text
+pFlag' = pDebug' <|> pLocations'
+
 pFlag_ :: Parser Token
-pFlag_ = makeToken (pDebug' <|> pLocations') <&> PERCENT_FLAG
+pFlag_ = makeToken pFlag' <&> PERCENT_FLAG
 
 pDefaultPrec' :: Parser Text
 pDefaultPrec' = kwsep_ ["%default", "prec"]
@@ -259,8 +265,11 @@ pLexParam' = kw_ "%lex-param"
 pParseParam' :: Parser Text
 pParseParam' = kw_ "%parse-param"
 
+pParam'' :: Parser Text
+pParam'' = pParam' <|> pParseParam' <|> pLexParam'
+
 pParam_ :: Parser Token
-pParam_ = makeToken (pParam' <|> pParseParam' <|> pLexParam') <&> PERCENT_PARAM
+pParam_ = makeToken pParam' <&> PERCENT_PARAM
 
 pPrecedence' :: Parser Text
 pPrecedence' = kw_ "%precedence"
@@ -371,7 +380,7 @@ idColon' :: Parser Text
 idColon' = try $ id_ <* test ':'
 
 idColon_ :: Parser Token
-idColon_ = ((<> ":") <$> makeToken idColon') <&> ID_COLON
+idColon_ = makeToken idColon' <&> ID_COLON
 
 bracketedId' :: Parser Text
 bracketedId' = try $ option "" id_ #<> charT '[' #<> id_ #<> charT ']'

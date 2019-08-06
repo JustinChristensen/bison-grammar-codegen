@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Bison.Grammar.Types where
 
+import GHC.Generics
 import Data.Text (Text)
 import Data.Void (Void)
 import Text.Megaparsec hiding (Token, runParser)
@@ -80,19 +81,19 @@ data Token
     | PERCENT_EMPTY
     deriving (Show, Read, Eq, Ord, Generic)
 
-newtype StringT = StringT Text
-newtype BracedCodeT = BracedCodeT Text
-newtype BracedPredicateT = BracedPredicateT Text
-newtype BracketedIdT = BracketedIdT Text
-newtype CharT = CharT Char
-newtype EpilogueT = EpilogueT Text
-newtype IdT = IdT Text
-newtype IdColonT = IdColonT Text
-newtype IntT = IntT Int
-newtype PrologueT = PrologueT Text
-newtype PercentFlagT = PercentFlagT Text
-newtype PercentParamT = PercentParamT Text
-newtype TagT = TagT Text
+newtype StringT = StringT Text deriving (Show, Read, Eq, Ord, Generic)
+newtype BracedCodeT = BracedCodeT Text deriving (Show, Read, Eq, Ord, Generic)
+newtype BracedPredicateT = BracedPredicateT Text deriving (Show, Read, Eq, Ord, Generic)
+newtype BracketedIdT = BracketedIdT Text deriving (Show, Read, Eq, Ord, Generic)
+newtype CharT = CharT Char deriving (Show, Read, Eq, Ord, Generic)
+newtype EpilogueT = EpilogueT Text deriving (Show, Read, Eq, Ord, Generic)
+newtype IdT = IdT Text deriving (Show, Read, Eq, Ord, Generic)
+newtype IdColonT = IdColonT Text deriving (Show, Read, Eq, Ord, Generic)
+newtype IntT = IntT Int deriving (Show, Read, Eq, Ord, Generic)
+newtype PrologueT = PrologueT Text deriving (Show, Read, Eq, Ord, Generic)
+newtype PercentFlagT = PercentFlagT Text deriving (Show, Read, Eq, Ord, Generic)
+newtype PercentParamT = PercentParamT Text deriving (Show, Read, Eq, Ord, Generic)
+newtype TagT = TagT Text deriving (Show, Read, Eq, Ord, Generic)
 
 data GrammarFile
     = GrammarFile [PrologueDecl] [GrammarRuleOrDecl] (Maybe Epilogue)
@@ -105,8 +106,8 @@ data PrologueDecl
     | DefinePD IdT (Maybe Value)
     | DefinesPD (Maybe StringT)
     | ErrorVerbosePD
-    | ExpectPD IntegerT
-    | ExpectRrPD IntegerT
+    | ExpectPD IntT
+    | ExpectRrPD IntT
     | FilePrefixPD StringT
     | GlrParserPD
     | InitialActionPD BracedCodeT
@@ -145,7 +146,7 @@ data SymbolDecl
 data TaggedDecls d = TaggedDecls TagT [d]
     deriving (Show, Read, Eq, Ord, Generic)
 
-data TokenDecl = TokenDecl Id (Maybe IntT) (Maybe String_)
+data TokenDecl = TokenDecl Id (Maybe IntT) (Maybe StringT)
     deriving (Show, Read, Eq, Ord, Generic)
 
 data PrecTokenDecl
@@ -201,8 +202,8 @@ data Value
     deriving (Show, Read, Eq, Ord, Generic)
 
 data Id
-    = Id IdentifierT
-    | Char CharacterT
+    = Id IdT
+    | Char CharT
     deriving (Show, Read, Eq, Ord, Generic)
 
 data Symbol

@@ -1,10 +1,50 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Bison.Grammar.Parser where
 
+import Data.Functor
 import Control.Applicative hiding (many, some)
 import Text.Megaparsec hiding (Token)
 import Bison.Grammar.Types
 import Bison.Grammar.Lexer
+
+stringT :: Parser StringT
+stringT = makeToken string' <&> StringT
+
+bracedCodeT :: Parser BracedCodeT
+bracedCodeT = makeToken bracedCode' <&> BracedCodeT
+
+predicateT :: Parser BracedPredicateT
+predicateT =  makeToken predicate' <&> BracedPredicateT
+
+bracketedIdT :: Parser BracketedIdT
+bracketedIdT = makeToken bracketedId' <&> BracketedIdT
+
+characterT :: Parser CharT
+characterT = makeToken character' <&> CharT
+
+epilogueT :: Parser EpilogueT
+epilogueT = makeToken epilogue' <&> EpilogueT
+
+identifierT :: Parser IdT
+identifierT = makeToken identifier' <&> IdT
+
+idColonT :: Parser IdColonT
+idColonT = makeToken idColon' <&> IdColonT
+
+integerT :: Parser IntT
+integerT = makeToken (hexadecimal' <|> decimal') <&> IntT
+
+prologueT :: Parser PrologueT
+prologueT = makeToken prologue' <&> PrologueT
+
+pFlagT :: Parser PercentFlagT
+pFlagT = makeToken pFlag' <&> PercentFlagT
+
+pParamT :: Parser PercentParamT
+pParamT = makeToken pParam'' <&> PercentParamT
+
+tagT :: Parser TagT
+tagT = makeToken tag' <&> TagT
 
 grammarFile :: Parser GrammarFile
 grammarFile = GrammarFile
@@ -15,25 +55,25 @@ grammarFile = GrammarFile
 prologueDecl :: Parser PrologueDecl
 prologueDecl =
         GrammarDeclPD <$> grammarDecl
-    <|> ProloguePD <$> prologue_
-    <|> FlagPD <$> pFlag_
-    <|> DefinePD <$> (pDefine_ *> identifier_) <*> optional value
-    <|> DefinesPD <$> (pDefines_ *> optional string_)
-    <|> ErrorVerbosePD <* pErrorVerbose_
-    <|> ExpectPD <$> (pExpect_ *> integer_)
-    <|> ExpectRrPD <$> (pExpectRr_ *> integer_)
-    <|> FilePrefixPD <$> (pFilePrefix_ *> string_)
+    <|> ProloguePD <$> prologueT
+    <|> FlagPD <$> pFlagT
+    <|> DefinePD <$> (pDefine_ *> identifierT) <*> optional value
+    <|> DefinesPD <$> (pDefines_ *> optional stringT)
+    <|> ErrorVerbosePD <$ pErrorVerbose_
+    <|> ExpectPD <$> (pExpect_ *> integerT)
+    <|> ExpectRrPD <$> (pExpectRr_ *> integerT)
+    <|> FilePrefixPD <$> (pFilePrefix_ *> stringT)
     <|> GlrParserPD <$ pGlrParser_
-    <|> InitialActionPD <$> (pInitialAction_ *> bracedCode_)
-    <|> LanguagePD <$> (pLanguage_ *> string_)
-    <|> NamePrefixPD <$> (pNamePrefix_ *> string_)
+    <|> InitialActionPD <$> (pInitialAction_ *> bracedCodeT)
+    <|> LanguagePD <$> (pLanguage_ *> stringT)
+    <|> NamePrefixPD <$> (pNamePrefix_ *> stringT)
     <|> NoLinesPD <$ pNoLines_
     <|> NonDeterministicParserPD <$ pNonDeterministicParser_
-    <|> OutputPD <$> (pOutput_ *> string_)
-    <|> ParamPD <$> (pParam_ *> many bracedCode_)
+    <|> OutputPD <$> (pOutput_ *> stringT)
+    <|> ParamPD <$> (pParam_ *> many bracedCodeT)
     <|> PureParserPD <$ pPureParser_
-    <|> RequirePD <$> (pRequire_ *> string_)
-    <|> SkeletonPD <$> (pSkeleton_ *> string_)
+    <|> RequirePD <$> (pRequire_ *> stringT)
+    <|> SkeletonPD <$> (pSkeleton_ *> stringT)
     <|> TokenTablePD <$ pTokenTable_
     <|> VerbosePD <$ pVerbose_
     <|> YaccPD <$ pYacc_
@@ -42,30 +82,30 @@ grammarDecl :: Parser GrammarDecl
 grammarDecl =
         SymbolDeclGD <$> symbolDecl
     <|> StartGD <$> (pStart_ *> symbol)
-    <|> DestructorGD <$> (pDestructor_ *> bracedCode_) <*> some genericSymlistItem
-    <|> PrinterGD <$> (pPrinter_ *> bracedCode_) <*> some genericSymlistItem
-    <|> DefaultPrecGD <$> pDefaultPrec_
-    <|> NoDefaultPrecGD <$> pNoDefaultPrec_
-    <|> CodeGD <$> (pCode_ *> optional identifier_) <*> bracedCode_
-    <|> UnionGD <$> (pUnion_ *> optional identifier_) <*> bracedCode_
+    <|> DestructorGD <$> (pDestructor_ *> bracedCodeT) <*> some genericSymlistItem
+    <|> PrinterGD <$> (pPrinter_ *> bracedCodeT) <*> some genericSymlistItem
+    <|> DefaultPrecGD <$ pDefaultPrec_
+    <|> NoDefaultPrecGD <$ pNoDefaultPrec_
+    <|> CodeGD <$> (pCode_ *> optional identifierT) <*> bracedCodeT
+    <|> UnionGD <$> (pUnion_ *> optional identifierT) <*> bracedCodeT
 
 symbolDecl:: Parser SymbolDecl
 symbolDecl =
-        NTermSD <$> (pNterm_ *> optional tag_) <*> some tokenDecl <*> many (taggedDecls tokenDecl)
-    <|> TokenSD <$> (pToken_ *> optional tag_) <*> some tokenDecl <*> many (taggedDecls tokenDecl)
-    <|> TypeSD <$> (pType_ *> optional tag_) <*> some symbol <*> many (taggedDecls symbol)
-    <|> NTermSD <$> precedenceDecl <*> optional tag_ <*> some precTokenDecl <*> many (taggedDecls precTokenDecl)
+        NTermSD <$> (pNterm_ *> optional tagT) <*> some tokenDecl <*> many (taggedDecls tokenDecl)
+    <|> TokenSD <$> (pToken_ *> optional tagT) <*> some tokenDecl <*> many (taggedDecls tokenDecl)
+    <|> TypeSD <$> (pType_ *> optional tagT) <*> some symbol <*> many (taggedDecls symbol)
+    <|> PrecedenceDeclSD <$> precedenceDecl <*> optional tagT <*> some precTokenDecl <*> many (taggedDecls precTokenDecl)
 
 taggedDecls :: Parser a -> Parser (TaggedDecls a)
-taggedDecls p = TaggedDecls <$> tag_ <*> some p
+taggedDecls p = TaggedDecls <$> tagT <*> some p
 
 tokenDecl :: Parser TokenDecl
-tokenDecl = TokenDecl <$> id' <*> optional integer_ <*> optional string_
+tokenDecl = TokenDecl <$> id' <*> optional integerT <*> optional stringT
 
 precTokenDecl :: Parser PrecTokenDecl
 precTokenDecl =
-        IdP <$> id' <*> optional integer_
-    <|> StrP <$> string_
+        IdP <$> id' <*> optional integerT
+    <|> StrP <$> stringT
 
 precedenceDecl :: Parser PrecedenceDecl
 precedenceDecl =
@@ -81,7 +121,7 @@ genericSymlistItem =
 
 tag :: Parser Tag
 tag =
-        Tag <$> tag_
+        Tag <$> tagT
     <|> TagAny <$ tagAny_
     <|> TagNone <$ tagNone_
 
@@ -92,8 +132,8 @@ grammarRuleOrDecl =
 
 rule :: Parser Rule
 rule = Rule
-    <$> idColon_
-    <*> optional bracketedId_
+    <$> idColonT
+    <*> optional bracketedIdT
     <*> (colon_ *> rhses `sepBy1` pipe_ <* semicolon_)
 
 rhses :: Parser Rhses
@@ -101,32 +141,32 @@ rhses = Rhses <$> some rhs
 
 rhs :: Parser Rhs
 rhs =
-        SymR <$> symbol <*> optional bracketedId_
-    <|> TagR <$> optional tag_ <*> bracedCode_ <*> optional bracketedId_
-    <|> PredR <$> predicate_
+        SymR <$> symbol <*> optional bracketedIdT
+    <|> TagR <$> optional tagT <*> bracedCodeT <*> optional bracketedIdT
+    <|> PredR <$> predicateT
     <|> EmptyR <$ pEmpty_
     <|> PrecR <$> (pPrec_ *> symbol)
-    <|> DprecR <$> (pDprec_ *> integer_)
-    <|> MergeR <$> (pMerge_ *> tag_)
-    <|> ExpectR <$> (pExpect_ *> integer_)
-    <|> ExpectRrR <$> (pExpectRr_ *> integer_)
+    <|> DprecR <$> (pDprec_ *> integerT)
+    <|> MergeR <$> (pMerge_ *> tagT)
+    <|> ExpectR <$> (pExpect_ *> integerT)
+    <|> ExpectRrR <$> (pExpectRr_ *> integerT)
 
 value :: Parser Value
 value =
-        IdV <$> identifier_
-    <|> StrV <$> string_
-    <|> CodeV <$> bracedCode_
+        IdV <$> identifierT
+    <|> StrV <$> stringT
+    <|> CodeV <$> bracedCodeT
 
 id' :: Parser Id
 id' =
-        Id <$> identifier_
-    <|> Char <$> character_
+        Id <$> identifierT
+    <|> Char <$> characterT
 
 symbol :: Parser Symbol
 symbol =
         IdS <$> id'
-    <|> StrS <$> string_
+    <|> StrS <$> stringT
 
 epilogue :: Parser Epilogue
-epilogue = Epilogue <$> (percentPercent_ *> epilogue_)
+epilogue = Epilogue <$> (percentPercent_ *> epilogueT)
 
