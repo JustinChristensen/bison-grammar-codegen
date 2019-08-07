@@ -263,8 +263,11 @@ decimal' = try $ makeLexeme $ L.decimal <* notFollowedBy letter_
 character' :: Parser Char
 character' = try $ makeLexeme $ M.char '\'' >> L.charLiteral <* M.char '\''
 
+string'' :: Parser Text
+string'' = M.char '"' >> (T.pack <$> manyTill L.charLiteral (M.char '"'))
+
 string' :: Parser Text
-string' = try $ makeLexeme $ M.char '"' >> (T.pack <$> manyTill L.charLiteral (M.char '"'))
+string' = try $ makeLexeme string''
 
 bracedCode' :: Parser Text
 bracedCode' = try $ makeLexeme $ nested "{" "}" p <* notFollowedBy (M.char '}')
@@ -272,7 +275,7 @@ bracedCode' = try $ makeLexeme $ nested "{" "}" p <* notFollowedBy (M.char '}')
         wrap c str = let c' = T.singleton c
                     in pure $ c' <> str <> c'
         p = nested "{" "}" p
-            <|> (string' >>= wrap '"')
+            <|> (string'' >>= wrap '"')
             <|> (T.singleton <$> character' >>= wrap '\'')
             <|> nested "/*" "*/" anySingleT
             <|> lineWithPrefix "//"
