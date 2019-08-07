@@ -245,10 +245,10 @@ semicolon' :: Parser Text
 semicolon' = makeLexeme (charT ';')
 
 identifier' :: Parser Text
-identifier' = try $ makeLexeme $ id_ <* notFollowedBy (letter_ <|> charT ':' <|> charT '[')
+identifier' = try $ makeLexeme $ id_ <* notFollowedBy (letter_ <|> charT ':')
 
 idColon' :: Parser Text
-idColon' = try $ makeLexeme $ id_ <* test ':'
+idColon' = try $ makeLexeme $ id_ <* lookAhead (test ':' <|> bracketedId' *> test ':')
 
 bracketedId' :: Parser Text
 bracketedId' = try $ makeLexeme $ option "" id_ <> charT '[' <> id_ <> charT ']'
@@ -335,13 +335,13 @@ tagT = tag' <&> TagT
 
 grammarFile :: Parser GrammarFile
 grammarFile = GrammarFile
-    <$> many prologueDecl
+    <$> (whitespace *> many prologueDecl)
     <*> (percentPercent' *> many grammarRuleOrDecl)
     <*> optional epilogue
 
 prologueDecl :: Parser PrologueDecl
 prologueDecl =
-        GrammarDeclPD <$> grammarDecl
+        GrammarDeclPD <$> (grammarDecl <* optional semicolon')
     <|> ProloguePD <$> prologueT
     <|> FlagPD <$> pFlagT
     <|> DefinePD <$> (pDefine' *> identifierT) <*> optional value
@@ -357,7 +357,7 @@ prologueDecl =
     <|> NoLinesPD <$ pNoLines'
     <|> NonDeterministicParserPD <$ pNonDeterministicParser'
     <|> OutputPD <$> (pOutput' *> stringT)
-    <|> ParamPD <$> (pParam' *> many bracedCodeT)
+    <|> ParamPD <$> pParamT <*> (many bracedCodeT)
     <|> PureParserPD <$ pPureParser'
     <|> RequirePD <$> (pRequire' *> stringT)
     <|> SkeletonPD <$> (pSkeleton' *> stringT)
@@ -421,7 +421,7 @@ rule :: Parser Rule
 rule = Rule
     <$> idColonT
     <*> optional bracketedIdT
-    <*> (colon' *> rhses `sepBy1` pipe' <* semicolon')
+    <*> (colon' *> rhses `sepBy1` pipe' <* optional semicolon')
 
 rhses :: Parser Rhses
 rhses = Rhses <$> some rhs
@@ -435,8 +435,8 @@ rhs =
     <|> PrecR <$> (pPrec' *> symbol)
     <|> DprecR <$> (pDprec' *> integerT)
     <|> MergeR <$> (pMerge' *> tagT)
-    <|> ExpectR <$> (pExpect' *> integerT)
     <|> ExpectRrR <$> (pExpectRr' *> integerT)
+    <|> ExpectR <$> (pExpect' *> integerT)
 
 value :: Parser Value
 value =

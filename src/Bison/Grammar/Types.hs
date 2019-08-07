@@ -81,19 +81,32 @@ data Token
     | PERCENT_EMPTY
     deriving (Show, Read, Eq, Ord, Generic)
 
-newtype StringT = StringT Text deriving (Show, Read, Eq, Ord, Generic)
-newtype BracedCodeT = BracedCodeT Text deriving (Show, Read, Eq, Ord, Generic)
-newtype BracedPredicateT = BracedPredicateT Text deriving (Show, Read, Eq, Ord, Generic)
-newtype BracketedIdT = BracketedIdT Text deriving (Show, Read, Eq, Ord, Generic)
-newtype CharT = CharT Char deriving (Show, Read, Eq, Ord, Generic)
-newtype EpilogueT = EpilogueT Text deriving (Show, Read, Eq, Ord, Generic)
-newtype IdT = IdT Text deriving (Show, Read, Eq, Ord, Generic)
-newtype IdColonT = IdColonT Text deriving (Show, Read, Eq, Ord, Generic)
-newtype IntT = IntT Int deriving (Show, Read, Eq, Ord, Generic)
-newtype PrologueT = PrologueT Text deriving (Show, Read, Eq, Ord, Generic)
-newtype PercentFlagT = PercentFlagT Text deriving (Show, Read, Eq, Ord, Generic)
-newtype PercentParamT = PercentParamT Text deriving (Show, Read, Eq, Ord, Generic)
-newtype TagT = TagT Text deriving (Show, Read, Eq, Ord, Generic)
+newtype StringT = StringT Text
+    deriving (Show, Read, Eq, Ord, Generic)
+newtype BracedCodeT = BracedCodeT Text
+    deriving (Show, Read, Eq, Ord, Generic)
+newtype BracedPredicateT = BracedPredicateT Text
+    deriving (Show, Read, Eq, Ord, Generic)
+newtype BracketedIdT = BracketedIdT Text
+    deriving (Show, Read, Eq, Ord, Generic)
+newtype CharT = CharT Char
+    deriving (Show, Read, Eq, Ord, Generic)
+newtype EpilogueT = EpilogueT Text
+    deriving (Show, Read, Eq, Ord, Generic)
+newtype IdT = IdT Text
+    deriving (Show, Read, Eq, Ord, Generic)
+newtype IdColonT = IdColonT Text
+    deriving (Show, Read, Eq, Ord, Generic)
+newtype IntT = IntT Int
+    deriving (Show, Read, Eq, Ord, Generic)
+newtype PrologueT = PrologueT Text
+    deriving (Show, Read, Eq, Ord, Generic)
+newtype PercentFlagT = PercentFlagT Text
+    deriving (Show, Read, Eq, Ord, Generic)
+newtype PercentParamT = PercentParamT Text
+    deriving (Show, Read, Eq, Ord, Generic)
+newtype TagT = TagT Text
+    deriving (Show, Read, Eq, Ord, Generic)
 
 data GrammarFile
     = GrammarFile [PrologueDecl] [GrammarRuleOrDecl] (Maybe Epilogue)
@@ -116,7 +129,7 @@ data PrologueDecl
     | NoLinesPD
     | NonDeterministicParserPD
     | OutputPD StringT
-    | ParamPD [BracedCodeT]
+    | ParamPD PercentParamT [BracedCodeT]
     | PureParserPD
     | RequirePD StringT
     | SkeletonPD StringT
@@ -191,8 +204,8 @@ data Rhs
     | PrecR Symbol
     | DprecR IntT
     | MergeR TagT
-    | ExpectR IntT
     | ExpectRrR IntT
+    | ExpectR IntT
     deriving (Show, Read, Eq, Ord, Generic)
 
 data Value
