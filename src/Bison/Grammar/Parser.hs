@@ -248,7 +248,7 @@ identifier' :: Parser Text
 identifier' = try $ makeLexeme $ id_ <* notFollowedBy (letter_ <|> charT ':')
 
 idColon' :: Parser Text
-idColon' = try $ makeLexeme $ id_ <* lookAhead (test ':' <|> bracketedId' *> test ':')
+idColon' = try $ makeLexeme $ id_ <* spaces <* lookAhead (test ':' <|> bracketedId' *> test ':')
 
 bracketedId' :: Parser Text
 bracketedId' = try $ makeLexeme $ option "" id_ <> charT '[' <> id_ <> charT ']'
@@ -339,7 +339,7 @@ tagT = tag' <&> TagT
 grammarFile :: Parser GrammarFile
 grammarFile = GrammarFile
     <$> (whitespace *> many prologueDecl)
-    <*> (percentPercent' *> many grammarRuleOrDecl)
+    <*> (percentPercent' *> manyTill grammarRuleOrDecl (eof <|> void percentPercent'))
     <*> optional epilogue
 
 prologueDecl :: Parser PrologueDecl
@@ -427,7 +427,7 @@ rule = Rule
     <*> (colon' *> rhses `sepBy1` pipe' <* optional semicolon')
 
 rhses :: Parser Rhses
-rhses = Rhses <$> some rhs
+rhses = Rhses <$> (([EmptyR] <$ lookAhead (pipe' <|> semicolon')) <|> some rhs)
 
 rhs :: Parser Rhs
 rhs =
@@ -458,5 +458,5 @@ symbol =
     <|> StrS <$> stringT
 
 epilogue :: Parser Epilogue
-epilogue = Epilogue <$> (percentPercent' *> epilogueT)
+epilogue = Epilogue <$> epilogueT
 

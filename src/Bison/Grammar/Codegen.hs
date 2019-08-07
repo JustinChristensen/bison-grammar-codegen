@@ -4,14 +4,15 @@ module Bison.Grammar.Codegen (
 
 import Text.Megaparsec hiding (Token)
 import qualified Data.Text.IO as T (getContents)
-import Bison.Grammar.Lexer
+import Bison.Grammar.Parser (grammarFile)
+import Bison.Grammar.Utils
 import Bison.Grammar.Types
 
 productions :: ([Token] -> IO ()) -> IO ()
 productions _ = do
     grammarSpec <- T.getContents
-    let mTokens = scan grammarSpec
-    case mTokens of
-        Right t -> mapM_ (putStrLn . show) t
+    let grammar = parse grammarFile "stdin" grammarSpec
+    case grammar of
+        Right t -> prettyPrint t
         Left e -> putStr (errorBundlePretty e)
 
