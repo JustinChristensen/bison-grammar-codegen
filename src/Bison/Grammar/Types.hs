@@ -10,6 +10,7 @@ import Control.Monad.Reader
 
 type Parser = Parsec Void Text
 type Scanner = StateT ScanState Parser
+type Codegen = ReaderT CodegenContext IO
 
 data ScanState = ScanState {
         section :: ScanSection
@@ -230,14 +231,34 @@ data Epilogue
     deriving (Show, Read, Eq, Generic)
 
 data CodegenContext = CodegenContext {
-        grammarAst :: GrammarFile
+        grammarAST :: GrammarFile
     } deriving (Show, Read, Eq, Generic)
 
-type Codegen = ReaderT CodegenContext IO
+data Production = Production {
+        name :: Text
+    ,   empty :: Bool
+    ,   clauses :: [Clause]
+    } deriving (Show, Read, Eq, Generic)
 
-data Production
-data Clause
+instance Semigroup Production where
+    (Production n1 e1 cs1) <> (Production _ e2 cs2) =
+        Production n1 (e1 || e2) (cs1 <> cs2)
+
+instance Monoid Production where
+    mempty = Production mempty False mempty
+    mappend = (<>)
+
+nameEq :: Production -> Production -> Bool
+nameEq p1 p2 = name p1 == name p2
+
+newtype Clause = Clause {
+        symbols :: [Symbol]
+    } deriving (Show, Read, Eq, Generic)
+
 data Symbol
+    = Terminal Text
+    | NonTerminal Text
+    deriving (Show, Read, Eq, Generic)
 
 runScanner :: ScanState -> Scanner a -> (String -> Text -> Either (ParseErrorBundle Text Void) (a, ScanState))
 runScanner s p = parse (runStateT p s)
