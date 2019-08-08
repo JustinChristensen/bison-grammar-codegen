@@ -6,6 +6,7 @@ import Data.Text (Text)
 import Data.Void (Void)
 import Text.Megaparsec hiding (Token)
 import Control.Monad.State
+import Control.Monad.Reader
 
 type Parser = Parsec Void Text
 type Scanner = StateT ScanState Parser
@@ -82,41 +83,41 @@ data Token
     deriving (Show, Read, Eq, Ord, Generic)
 
 newtype StringT = StringT Text
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 newtype BracedCodeT = BracedCodeT Text
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 newtype BracedPredicateT = BracedPredicateT Text
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 newtype BracketedIdT = BracketedIdT Text
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 newtype CharT = CharT Char
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 newtype EpilogueT = EpilogueT Text
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 newtype IdT = IdT Text
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 newtype IdColonT = IdColonT Text
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 newtype IntT = IntT Int
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 newtype PrologueT = PrologueT Text
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 newtype PercentFlagT = PercentFlagT Text
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 newtype PercentParamT = PercentParamT Text
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 newtype TagT = TagT Text
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data GrammarFile
     = GrammarFile [PrologueDecl] [GrammarRuleOrDecl] (Maybe Epilogue)
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data PrologueDecl
     = GrammarDeclPD GrammarDecl
     | ProloguePD PrologueT
     | FlagPD PercentFlagT
-    | DefinePD IdT (Maybe Value)
+    | DefinePD IdT (Maybe ValueN)
     | DefinesPD (Maybe StringT)
     | ErrorVerbosePD
     | ExpectPD IntT
@@ -136,97 +137,107 @@ data PrologueDecl
     | TokenTablePD
     | VerbosePD
     | YaccPD
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data GrammarDecl
     = SymbolDeclGD SymbolDecl
-    | StartGD Symbol
+    | StartGD SymbolN
     | DestructorGD BracedCodeT [GenericSymlistItem]
     | PrinterGD BracedCodeT [GenericSymlistItem]
     | DefaultPrecGD
     | NoDefaultPrecGD
     | CodeGD (Maybe IdT) BracedCodeT
     | UnionGD (Maybe IdT) BracedCodeT
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data SymbolDecl
     = NTermSD (Maybe TagT) [TokenDecl] [TaggedDecls TokenDecl]
     | TokenSD (Maybe TagT) [TokenDecl] [TaggedDecls TokenDecl]
-    | TypeSD (Maybe TagT) [Symbol] [TaggedDecls Symbol]
+    | TypeSD (Maybe TagT) [SymbolN] [TaggedDecls SymbolN]
     | PrecedenceDeclSD PrecedenceDecl (Maybe TagT) [PrecTokenDecl] [TaggedDecls PrecTokenDecl]
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data TaggedDecls d = TaggedDecls TagT [d]
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
-data TokenDecl = TokenDecl Id (Maybe IntT) (Maybe StringT)
-    deriving (Show, Read, Eq, Ord, Generic)
+data TokenDecl = TokenDecl IdN (Maybe IntT) (Maybe StringT)
+    deriving (Show, Read, Eq, Generic)
 
 data PrecTokenDecl
-    = IdP Id (Maybe IntT)
+    = IdP IdN (Maybe IntT)
     | StrP StringT
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data PrecedenceDecl
     = LeftPD
     | RightPD
     | NonAssocPD
     | PrecedencePD
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data GenericSymlistItem
-    = SymbolGS Symbol
+    = SymbolGS SymbolN
     | TagGS Tag
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data Tag
     = Tag TagT
     | TagAny
     | TagNone
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data GrammarRuleOrDecl
     = RuleGD Rule
     | GrammarDeclGD GrammarDecl
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data Rule = Rule IdColonT (Maybe BracketedIdT) [Rhses]
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data Rhses = Rhses [Rhs]
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data Rhs
-    = SymR Symbol (Maybe BracketedIdT)
+    = SymR SymbolN (Maybe BracketedIdT)
     | TagR (Maybe TagT) BracedCodeT (Maybe BracketedIdT)
     | PredR BracedPredicateT
     | EmptyR
-    | PrecR Symbol
+    | PrecR SymbolN
     | DprecR IntT
     | MergeR TagT
     | ExpectRrR IntT
     | ExpectR IntT
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
-data Value
+data ValueN
     = IdV IdT
     | StrV StringT
     | CodeV BracedCodeT
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
-data Id
+data IdN
     = Id IdT
     | Char CharT
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
-data Symbol
-    = IdS Id
+data SymbolN
+    = IdS IdN
     | StrS StringT
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
 
 data Epilogue
     = Epilogue EpilogueT
-    deriving (Show, Read, Eq, Ord, Generic)
+    deriving (Show, Read, Eq, Generic)
+
+data CodegenContext = CodegenContext {
+        grammarAst :: GrammarFile
+    } deriving (Show, Read, Eq, Generic)
+
+type Codegen = ReaderT CodegenContext IO
+
+data Production
+data Clause
+data Symbol
 
 runScanner :: ScanState -> Scanner a -> (String -> Text -> Either (ParseErrorBundle Text Void) (a, ScanState))
 runScanner s p = parse (runStateT p s)

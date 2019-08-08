@@ -1,6 +1,8 @@
 module Main where
 
-import Bison.Grammar.Codegen (productions)
+import Bison.Grammar.Types (grammarAst)
+import Bison.Grammar.Codegen (withFile, prettyPrint)
+import Control.Monad.Reader
 import Options.Applicative
 import Data.Version (showVersion)
 import Paths_bison_grammar_codegen (version)
@@ -23,7 +25,9 @@ runVersion = putStrLn (showVersion version)
 
 runCodegen :: IO ()
 runCodegen = do
-    productions $ \_ -> pure ()
+    withFile Nothing $ do
+        ast <- asks grammarAst
+        prettyPrint ast
 
 main :: IO ()
 main = do

@@ -338,8 +338,8 @@ tagT = tag' <&> TagT
 
 grammarFile :: Parser GrammarFile
 grammarFile = GrammarFile
-    <$> (whitespace *> many prologueDecl)
-    <*> (percentPercent' *> manyTill grammarRuleOrDecl (eof <|> void percentPercent'))
+    <$> (whitespace *> manyTill prologueDecl percentPercent')
+    <*> (manyTill grammarRuleOrDecl (eof <|> void percentPercent'))
     <*> optional epilogue
 
 prologueDecl :: Parser PrologueDecl
@@ -441,18 +441,18 @@ rhs =
     <|> ExpectRrR <$> (pExpectRr' *> integerT)
     <|> ExpectR <$> (pExpect' *> integerT)
 
-value :: Parser Value
+value :: Parser ValueN
 value =
         IdV <$> identifierT
     <|> StrV <$> stringT
     <|> CodeV <$> bracedCodeT
 
-id' :: Parser Id
+id' :: Parser IdN
 id' =
         Id <$> identifierT
     <|> Char <$> characterT
 
-symbol :: Parser Symbol
+symbol :: Parser SymbolN
 symbol =
         IdS <$> id'
     <|> StrS <$> stringT

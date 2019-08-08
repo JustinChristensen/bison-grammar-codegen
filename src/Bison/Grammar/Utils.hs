@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Bison.Grammar.Utils (
-  pretty
-, prettyPrint
+    Pretty
+,   pretty
+,   prettyPrint
 ) where
 
 import Prelude hiding (unwords, unlines, putStrLn)
@@ -123,16 +124,16 @@ instance Pretty Rhs where
     pretty (ExpectRrR i) = unwords ["%expect-rr", pretty i]
     pretty (ExpectR i) = unwords ["%expect", pretty i]
 
-instance Pretty Value where
+instance Pretty ValueN where
     pretty (IdV i) = pretty i
     pretty (StrV s) = pretty s
     pretty (CodeV bc) = pretty bc
 
-instance Pretty Id where
+instance Pretty IdN where
     pretty (Id i) = pretty i
     pretty (Char c) = pretty c
 
-instance Pretty Symbol where
+instance Pretty SymbolN where
     pretty (IdS i) = pretty i
     pretty (StrS s) = pretty s
 

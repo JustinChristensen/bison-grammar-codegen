@@ -19,6 +19,7 @@ library
       , Bison.Grammar.Lexer
       , Bison.Grammar.Parser
       , Bison.Grammar.Types
+      , Bison.Grammar.Utils
     hs-source-dirs: src
     build-depends:
         fast-logger
@@ -34,6 +35,7 @@ executable bison-gen
         Paths_bison_grammar_codegen
     build-depends:
         bison-grammar-codegen
+      , mtl
       , optparse-applicative
 
 test-suite tests

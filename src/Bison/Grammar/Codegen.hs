@@ -1,18 +1,47 @@
 module Bison.Grammar.Codegen (
-    productions
+    withFile
+,   withFileText
+,   productions
+,   clauses
+,   symbols
+,   render
+,   prettyPrint
 ) where
 
-import Text.Megaparsec hiding (Token)
-import qualified Data.Text.IO as T (getContents)
+import qualified Data.Text.IO as T (getContents, readFile)
+import Data.Text (Text)
+import Control.Monad.Reader
+import Text.Megaparsec
 import Bison.Grammar.Parser (grammarFile)
-import Bison.Grammar.Utils
+import Bison.Grammar.Utils (Pretty)
+import qualified Bison.Grammar.Utils as U
 import Bison.Grammar.Types
 
-productions :: ([Token] -> IO ()) -> IO ()
-productions _ = do
-    grammarSpec <- T.getContents
-    let grammar = parse grammarFile "stdin" grammarSpec
-    case grammar of
-        Right t -> prettyPrint t
-        Left e -> putStr (errorBundlePretty e)
+withFile :: Maybe FilePath -> Codegen () -> IO ()
+withFile mfp rdr = do
+        input <- maybe T.getContents T.readFile mfp
+        withFileText input dfp rdr
+    where dfp = maybe "stdin" id mfp
+
+withFileText :: Text -> FilePath -> Codegen () -> IO ()
+withFileText input dfp rdr =
+    case parse grammarFile dfp input of
+        Left eb -> putStrLn $ errorBundlePretty eb
+        Right ast -> runReaderT rdr $ CodegenContext ast
+
+productions :: Codegen [Production]
+productions = undefined
+
+clauses :: Production -> Codegen [Clause]
+clauses = undefined
+
+symbols :: Clause -> Codegen [Symbol]
+symbols = undefined
+
+render :: Codegen ()
+render = undefined
+
+prettyPrint :: Pretty a => a -> Codegen ()
+prettyPrint = liftIO . U.prettyPrint
+
 
