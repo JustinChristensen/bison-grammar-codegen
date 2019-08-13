@@ -14,7 +14,7 @@ import Control.Monad.Reader
 import Text.Megaparsec
 import Bison.Grammar.Parser (grammarFile)
 import Bison.Grammar.Utils (Pretty)
-import qualified Bison.Grammar.AST as A (toProductions)
+import qualified Bison.Grammar.Gram as G (toProductions)
 import qualified Bison.Grammar.Utils as U
 import Bison.Grammar.Types
 
@@ -31,7 +31,7 @@ withFileText input dfp rdr =
         Right ast -> runReaderT rdr $ CodegenContext ast
 
 productions :: Codegen [Production]
-productions = A.toProductions [] <$> asks grammarAST
+productions = G.toProductions [] <$> asks grammarAST
 
 render :: Codegen ()
 render = undefined

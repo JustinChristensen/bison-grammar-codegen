@@ -15,8 +15,8 @@ common props
 library
     import: props
     exposed-modules:
-        Bison.Grammar.AST
-      , Bison.Grammar.Codegen
+        Bison.Grammar.Codegen
+      , Bison.Grammar.Gram
       , Bison.Grammar.Lexer
       , Bison.Grammar.Parser
       , Bison.Grammar.Types

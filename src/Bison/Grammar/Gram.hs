@@ -1,4 +1,4 @@
-module Bison.Grammar.AST where
+module Bison.Grammar.Gram where
 
 import Data.Maybe (catMaybes)
 import Bison.Grammar.Types
